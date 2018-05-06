@@ -1,0 +1,158 @@
+# Copyright 2012 Arne Janbu
+# Distributed under the terms of the GNU General Public License v2
+
+require alternatives
+
+myexparam wayland_dep
+myexparam wayland_protocols_dep
+
+export_exlib_phases src_compile src_install
+
+SUMMARY="Weston is the reference implementation of a Wayland-based compositor"
+HOMEPAGE="http://wayland.freedesktop.org/"
+
+LICENCES="MIT"
+MYOPTIONS="
+    doc    [[ description = [ Build developer documentation ] ]]
+    colord [[ description = [ dynamic color profiling support through colord ] ]]
+    intel  [[ description = [ Build simple Intel dmabuf client ] ]]
+    rdp    [[ description = [ RDP compositor and screen sharing ] ]]
+    systemd
+    X      [[ description = [ X11 backend and XWayland ] ]]
+
+    ( providers: ijg-jpeg jpeg-turbo ) [[ number-selected = exactly-one ]]
+    ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
+"
+
+# Tests fail because they try to run weston
+RESTRICT="test"
+
+DEPENDENCIES="
+    build:
+        virtual/pkg-config
+        doc? ( app-doc/doxygen )
+        X? (
+            x11-proto/xcb-proto
+            x11-proto/xorgproto
+        )
+    build+run:
+        dev-libs/glib:2[>=2.36]
+        media-libs/libpng:=
+        providers:ijg-jpeg? ( media-libs/jpeg:= )
+        providers:jpeg-turbo? ( media-libs/libjpeg-turbo )
+        sys-apps/dbus
+        sys-libs/libinput[>=0.8.0]
+        sys-libs/pam
+        sys-libs/wayland$(exparam wayland_dep)
+        sys-libs/wayland-protocols$(exparam wayland_protocols_dep)
+        x11-dri/libdrm[>=2.4.30]
+        x11-dri/mesa[>=10.2][wayland][?X]
+        x11-libs/cairo[>=1.10.0]
+        x11-libs/gdk-pixbuf:2.0
+        x11-libs/pango
+        x11-libs/pixman:1[>=0.25.2]
+        colord? ( sys-apps/colord[>=0.1.27] )
+        intel? ( x11-dri/libdrm[video_drivers:intel] )
+        rdp? ( net-remote/FreeRDP[>=1.1.0] )
+        systemd? ( sys-apps/systemd[>=198] )
+        X? (
+            x11-libs/libX11
+            x11-libs/libXcursor
+            x11-libs/libxcb[>=1.9]
+	    x11-libs/libxkbcommon[>=0.5.0] [[ note = [ XKBCOMMON_COMPOSE ] ]]
+        )
+        providers:eudev? ( sys-apps/eudev )
+        providers:systemd? ( sys-apps/systemd )
+        !compositor/weston:0 [[
+            description = [ Pre parallel-installable Weston ]
+            resolution = uninstall-blocked-after
+        ]]
+    run:
+	X? (
+	    x11-apps/xkeyboard-config [[ note = [ for XKB database ] ]]
+	    x11-server/xorg-server[xwayland] 
+	   )
+"
+
+BUGS_TO="sardemff7@exherbo.org devel@arnej.de"
+
+DEFAULT_SRC_CONFIGURE_PARAMS=(
+    --libexec='${exec_prefix}'/libexec/weston-${SLOT}
+
+    --enable-dbus
+    --enable-demo-clients-install
+    --enable-simple-dmabuf-v4l-client
+    --with-cairo=image
+
+    --disable-junit-xml
+    --disable-libunwind
+    --disable-vaapi-recorder
+)
+
+DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
+    colord
+    'doc devdocs'
+    # Also available for freedreno, but we disable that in libdrm.
+    # TODO: Unfortunately the dependecy is automagic, so if we ever provide
+    # x11-dri/libdrm[video_drivers:freedreno] we need to do something about it
+    # (and the option name obviously).
+    'intel simple-dmabuf-drm-client'
+    'rdp rdp-compositor'
+    'rdp screen-sharing'
+    'systemd systemd-login'
+    'systemd systemd-notify'
+    'X x11-compositor'
+    'X xwayland'
+)
+
+weston_src_compile() {
+    default
+
+    option doc && emake doc
+}
+
+weston_src_install() {
+    default
+
+    if option doc ; then
+        docinto html
+        dodoc -r docs/developer/html/*
+    fi
+
+    edo cd "${IMAGE}"
+
+    local alternatives=( ${PN} ${PNV} ${SLOT} ) prefix=usr/$(exhost --target) dir subdir f
+
+    alternatives+=( /${prefix}/lib/pkgconfig/weston.pc weston-${SLOT}.pc )
+    alternatives+=( /${prefix}/include/weston weston-${SLOT} )
+
+    dir=${prefix}/bin
+    edo pushd ${dir}
+    for f in *; do
+        alternatives+=( /${dir}/${f} ${f}-${SLOT} )
+    done
+    edo popd
+
+    dir=${prefix}/lib/weston
+    edo pushd ${dir}
+    for f in *; do
+        alternatives+=( /${dir}/${f} ${SLOT}/${f} )
+    done
+    edo mkdir ${SLOT}
+    edo popd
+
+    dir=usr/share/man
+    edo pushd ${dir}
+    for subdir in man?; do
+        edo pushd ${subdir}
+        for f in *; do
+            alternatives+=( /${dir}/${subdir}/${f} ${f%.*}-${SLOT}.${f##*.} )
+        done
+        edo popd
+    done
+    edo popd
+    alternatives+=( /usr/share/weston weston-${SLOT} )
+    alternatives+=( /usr/share/wayland-sessions/weston.desktop weston-${SLOT}.desktop )
+
+    alternatives_for "${alternatives[@]}"
+}

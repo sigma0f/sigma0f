@@ -1,0 +1,50 @@
+# Copyright 2014-2015 Quentin "Sardem FF7" Glidic <sardemff7@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require meson udev-rules
+
+SUMMARY="Input device management and event handling library"
+HOMEPAGE="https://www.freedesktop.org/wiki/Software/${PN}"
+
+BUGS_TO="sardemff7@exherbo.org"
+
+LICENCES="MIT"
+SLOT="0"
+MYOPTIONS="
+    doc
+    wacom [[ description = [ Use libwacom for tablet identification ] ]]
+    ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
+"
+
+# Needs root to inject fake devices
+RESTRICT="test"
+
+DEPENDENCIES="
+    build:
+        sys-devel/libtool
+        virtual/pkg-config
+        doc? ( app-doc/doxygen[>=1.8.3][dot] )
+    build+run:
+        x11-libs/libevdev[>=1.5]
+        providers:eudev? ( sys-apps/eudev )
+        providers:systemd? ( sys-apps/systemd[>=221] )
+        wacom? ( x11-libs/libwacom[>=0.20] )
+    test:
+        dev-libs/check[>=0.9.10]
+        dev-util/valgrind
+"
+
+MESON_SRC_CONFIGURE_PARAMS=(
+    -Ddebug-gui=false
+    -Dudev-dir=${UDEVDIR}
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
+    'doc documentation'
+    'wacom libwacom'
+)
+
+MESON_SRC_CONFIGURE_TESTS=(
+    '-Dtests=true -Dtests=false'
+)
+

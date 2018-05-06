@@ -1,0 +1,31 @@
+# Copyright 2018 sigma0f <sigma0f@pm.me>
+# Distributed under the terms of the GNU General Public License v2
+
+export_exlib_phases pkg_setup src_install
+
+SUMMARY="firmware blobs for use with the Linux kernel"
+DESCRIPTION=""
+
+HOMEPAGE="https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
+
+SLOT="0"
+
+MYOPTIONS=""
+DEPENDENCIES="
+    run:	
+        !firmware/linux-firmware
+	!net-wireless/iwlwifi-3160-ucode 
+	!firmware/intel-bluetooth
+	!firmware/intel-microcode
+"
+
+firmware_pkg_setup() {
+    edo mkdir "${WORK}"
+}
+
+firmware_src_install() {
+    insinto /usr/$(exhost --target)/lib/firmware
+    doins "${FILES}"/iwlwifi-3160-17.ucode
+    insinto /usr/$(exhost --target)/lib/firmware/intel-ucode
+    doins "${FILES}"/intel-ucode/06-3c-03
+}
