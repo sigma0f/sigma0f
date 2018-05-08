@@ -78,6 +78,10 @@ zfs_src_install() {
     dodir /usr/src/${PNV}
     edo mv * "${IMAGE}/usr/src/${PNV}"
     edo find "${IMAGE}" -type d -empty -delete
+
+    # usefull script
+    instinto /usr/local/bin
+    doexe bak.sh cln.sh newroot.sh
 }
 
 zfs_pkg_postinst() {

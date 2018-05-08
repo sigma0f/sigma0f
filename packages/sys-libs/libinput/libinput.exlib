@@ -26,6 +26,7 @@ DEPENDENCIES="
         doc? ( app-doc/doxygen[>=1.8.3][dot] )
     build+run:
         x11-libs/libevdev[>=1.5]
+        x11-libs/mtdev[>=1.1.0]
         providers:eudev? ( sys-apps/eudev )
         providers:systemd? ( sys-apps/systemd[>=221] )
         wacom? ( x11-libs/libwacom[>=0.20] )

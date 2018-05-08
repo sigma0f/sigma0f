@@ -1,0 +1,172 @@
+# Copyright 2015 Kylie McClain <somasis@exherbo.org>
+# Copyright 2015 Wouter van Kesteren <woutershep@gmail.com>
+# Distributed under the terms of the GNU General Public License v2
+#
+# Based in part on 'packages/fonts/google-roboto-fonts' in ::x11
+#   Copyright 2015 Timo Gurr <tgurr@exherbo.org>
+#   Distributed under the terms of the GNU General Public License v2
+#
+
+require github [ user=googlei18n pn=${PN}-fonts ]
+
+SUMMARY="Beautiful and free fonts for all languages"
+HOMEPAGE="https://www.google.com/get/${PN}/"
+
+MYLINGUAS=(
+    'adlm SansAdlam SansAdlamUnjoined'
+    'ae SansAvestan'
+    'akk SansCuneiform'
+    'ar KufiArabic NaskhArabic SansArabic'
+    'arc SansImperialAramaic'
+    'ban SansBalinese'
+    'bax SansBamum'
+    'bbc SansBatak'
+    'bh SansKaithi'
+    'bku SansBuhid'
+    'blt SansTaiViet'
+    'bn SansBengali SerifBengali'
+    'bug SansBuginese'
+    'cakm SansChakma'
+    'cham SansCham'
+    'chr SansCherokee'
+    'cop SansCoptic'
+    'cr SansCanadianAboriginal'
+    'deva SansDevanagari SerifDevanagari'
+    'dsrt SansDeseret'
+    'egyp SansEgyptianHieroglyphs'
+    'eky SansKayahLi'
+    'el SansCypriot SansLinearB'
+    'gez SansEthiopic SerifEthiopic'
+    'glag SansGlagolitic'
+    'got SansGothic'
+    'gujr SansGujarati'
+    'guru SansGurmukhi'
+    'hano SansHanunoo'
+    'he SansHebrew SerifHebrew'
+    'hit SansCuneiform'
+    'hluw SansAnatolianHieroglyphs'
+    'hy SansArmenian SerifArmenian'
+    'ii SansYi'
+    'ital SansOldItalic'
+    'ja SansCJKjp SansJP SerifCJKjp SerifJP'
+    'jv SansJavanese'
+    'ka SansGeorgian SerifGeorgian'
+    'khb SansNewTaiLue'
+    'khmr SansKhmer'
+    'kn SansKannada SerifKannada'
+    'ko SansCJKkr SansKR SerifCJKkr SerifKR'
+    'kyu SansKayahLi'
+    'lana SansTaiTham'
+    'laoo SansLao SerifLao'
+    'lepc SansLepcha'
+    'lif SansLimbu'
+    'lis SansLisu'
+    'lydi SansLydian'
+    'ml SansMalayalam SerifMalayalam'
+    'mni SansMeeteiMayek'
+    'mong SansMongolian'
+    'my SansMyanmar SerifMyanmar'
+    'myz SansMandaic'
+    'nkoo SansNKo'
+    'non SansRunic'
+    'ogam SansOgham'
+    'olck SansOlChiki'
+    'orya SansOriya'
+    'osge SansOsage'
+    'otk SansOldTurkic'
+    'pal SansInscriptionalPahlavi'
+    'peo SansOldPersian'
+    'phag SansPhagsPa'
+    'phn SansPhoenician'
+    'pi SansBrahmi'
+    'pra SansKharoshthi'
+    'rjng SansRejang'
+    'samr SansSamaritan'
+    'saz SansSaurashtra'
+    'shaw SansShavian'
+    'sinh SansSinhala SerifSinhala'
+    'so SansOsmanya'
+    'sund SansSundanese'
+    'sylo SansSylotiNagri'
+    'syre SansSyriacEstrangela'
+    'syrj SansSyriacWestern'
+    'syrn SansSyriacEastern'
+    'ta SansTamil SerifTamil'
+    'tagb SansTagbanwa'
+    'tale SansTaiLe'
+    'te SansTelugu SerifTelugu'
+    'tfng SansTifinagh'
+    'tglg SansTagalog'
+    'th SansThai SerifThai'
+    'thaa SansThaana'
+    'tibt SansTibetan'
+    'ugar SansUgaritic'
+    'ur NastaliqUrdu'
+    'vai SansVai'
+    'xcr SansCarian'
+    'xlc SansLycian'
+    'xpr SansInscriptionalParthian'
+    'xsa SansOldSouthArabian'
+    'zh SansCJKsc SansCJKtc SansSC SansTC SerifCJKsc SerifCJKtc SerifSC SerifTC'
+)
+
+MYOPTIONS="linguas: $(
+    for X in "${MYLINGUAS[@]}"; do
+        set -- ${X}
+        echo "${1}"
+    done
+)"
+
+DOWNLOADS_PREFIX="https://dev.exherbo.org/distfiles/${PN}/${PNV}-"
+DOWNLOADS="$(
+    echo ${DOWNLOADS_PREFIX}{Sans,SansDisplay,Serif,SerifDisplay,ColorEmoji,Emoji,SansSymbols,SansSymbols2,Mono,SansMono}.zip
+    for X in "${MYLINGUAS[@]}"; do
+        set -- ${X}
+        echo "linguas:${1}? ("
+        shift
+        for Y in "${@}"; do
+            echo "${DOWNLOADS_PREFIX}${Y}.zip"
+        done
+        echo ")"
+    done
+    for X in 'ja' 'ko' 'zh'; do
+        set -- ${X}
+        echo "linguas:${1}? ("
+        echo ${DOWNLOADS_PREFIX}SansCJK{,-Black,-Bold,-DemiLight,-Light,-Medium,-Regular,-Thin}.ttc.zip
+        echo ${DOWNLOADS_PREFIX}SerifCJK{,-Black,-Bold,-ExtraLight,-Light,-Medium,-Regular,-SemiBold}.ttc.zip
+        echo ")"
+    done
+)"
+
+LICENCES="OFL-1.1"
+
+SLOT="0"
+PLATFORMS="~amd64 ~armv8"
+
+DEPENDENCIES="
+    build:
+        virtual/unzip
+"
+
+WORK=${WORKBASE}
+
+src_install() {
+    insinto /usr/share/fonts/X11/${PN}
+    doins *.ttf
+
+    # ttc files may not exist with the options chosen.
+    ttcs=( *.ttc )
+    if [[ -f "${ttcs}" ]];then # did the glob find anything?
+        doins *.ttc
+    fi
+
+    insinto /usr/share/fontconfig/conf.avail
+    doins "${FILES}"/65-noto-sans-serif.conf
+    doins "${FILES}"/65-noto-serif.conf
+    doins "${FILES}"/65-noto-mono.conf
+    doins "${FILES}"/65-noto-color-emoji.conf
+    doins "${FILES}"/65-noto-emoji.conf
+
+    fix_fonts
+    emagicdocs
+}

@@ -1,0 +1,285 @@
+# Copyright 2018 Rasmus Thomsen <cogitri@exherbo.org>
+# Based in part upon 'mesa.exlib' which is:
+# Copyright 2008 Alexander Færøy <eroyf@eroyf.org>
+# Copyright 2008-2011 Ingmar Vanhassel <ingmar@exherbo.org>
+# Copyright 2013 Saleem Abdulrasool <compnerd@compnerd.org>
+
+if ever is_scm ; then
+    SCM_REPOSITORY="https://anongit.freedesktop.org/git/${PN}/${PN}.git"
+    require scm-git
+else
+    MY_PV=${PV%%-rc*}
+    DOWNLOADS="
+        https://mesa.freedesktop.org/archive/${MY_PV}/${PNV}.tar.xz
+        https://mesa.freedesktop.org/archive/${PNV}.tar.xz
+    "
+    UPSTREAM_RELEASE_NOTES="https://www.mesa3d.org/relnotes/${PV}.html"
+fi
+
+require alternatives meson
+
+export_exlib_phases src_prepare src_configure src_install
+
+SUMMARY="Mesa's OpenGL library"
+HOMEPAGE="https://www.mesa3d.org"
+
+LICENCES="MIT"
+SLOT="18"
+MYOPTIONS="
+    osmesa
+    d3d9 [[ description = [ Gallium Direct3D 9.x state tracker ] requires = [ llvm X ] ]]
+    d3d9? (
+        video_drivers:
+            (
+                i915
+                intel
+                nouveau
+                r300
+                radeon
+                vmware
+            ) [[ number-selected = at-least-one ]]
+    )
+    gl-vendor [[
+        description = [ Install a glvnd (gl vendor) file to allow for parallel install of multiple GL implementations ]
+    ]]
+    llvm [[ description = [ Using LLVM as the shader backend for Gallium ] ]]
+    opencl [[ description = [ Enable the OpenCL Gallium state tracker ] requires = [ llvm ] ]]
+    sensors [[ description = [ Gallium extra HUD and sensors support ] ]]
+    sensors? ( ( video_drivers: nouveau radeon ) [[ number-selected = at-least-one ]] )
+    texture-float [[ description = [ Enable floating-point textures and renderbuffers. SGI claims to hold patents on this code. ] ]]
+    va [[ description = [ Enable the VA-API state tracker ] ]]
+    va? (
+        ( X wayland ) [[ number-selected = at-least-one ]]
+        video_drivers:
+            (
+                nouveau
+                radeon
+            ) [[ number-selected = at-least-one ]]
+    )
+    vdpau [[ description = [ Enable support for VDPAU hardware accelerated video decoding ] requires = [ X ] ]]
+    wayland
+    X [[ description = [ Enable GLX ] presumed = true ]]
+    xa [[ description = [ Enable the X Acceleration API (xatracker) ] ]]
+    xvmc [[ description = [ Enable support for XvMC hardware accelerated video decoding ] ]]
+    (
+        platform:
+            amd64
+            x86
+        video_drivers:
+            (
+                i915 [[ description = [ Gallium driver for i915 based Intel GPUs ] ]]
+                intel [[ description = [ Driver for i915, i965 and newer ] ]]
+            ) [[ number-selected = at-most-one ]]
+            gallium-swrast [[ description = [ Gallium based software driver ] ]]
+            (
+                nouveau [[ description = [ (Gallium) Generally for newer Nvidia cards ] ]]
+                nouveau-legacy [[ description = [ Generally for older Nvidia cards ] ]]
+            ) [[ number-selected = at-most-one ]]
+            (
+                r300 [[ description = [ (Gallium) Driver for Radeon cards from 9500 (r300) to X1950 (r500) ] ]]
+                radeon [[ description = [ (Gallium) Driver for the Radeon HD-2000 (r600) and newer ] ]]
+            ) [[ requires = [ llvm video_drivers: gallium-swrast ] ]]
+            radeon-legacy [[ description = [ Classic driver for cards older than the Radeon 9500 (r300) ] ]]
+            virtio-gpu [[ description = [ Gallium driver for guest systems on hypervisors with VirtIO-GPU ] ]]
+            vmware [[ description = [ Gallium driver for VMware's SVGA virtual GPU ] ]]
+    )
+    (
+        platform:
+            armv7
+        video_drivers:
+            (
+                vc4 [[ description = [ Gallium driver for Raspberry Pi Videocore graphics ] ]]
+            )
+    )
+    llvm? (
+        ( video_drivers: gallium-swrast i915 nouveau r300 radeon ) [[ number-selected = at-least-one ]]
+    )
+    opencl? (
+        ( video_drivers: nouveau radeon ) [[ number-selected = at-least-one ]]
+    )
+    valgrind [[ description = [ Support valgrind intrinsics to suppress false warnings ] ]]
+    vdpau? ( ( video_drivers: nouveau radeon ) [[ number-selected = at-least-one ]] )
+    xa? ( ( video_drivers: i915 nouveau vmware ) [[ number-selected = at-least-one ]] )
+    xvmc? ( ( video_drivers: nouveau radeon ) [[ number-selected = at-least-one ]] )
+"
+
+LIBDRM_REQUIRED='[>=2.4.91]'
+# NOTE(Cogitri): for xcb-glx
+XCBDRI2_REQUIRED='[>=1.8.1]'
+
+# TODO state trackers: OpenMAX(omx), requires additional new dependency libomxil-bellagio
+DEPENDENCIES="
+    build:
+        dev-lang/python:2.7
+        dev-libs/libpthread-stubs[>=0.4]
+        dev-python/Mako[>=0.8.0][python_abis:2.7]
+        sys-devel/bison
+        sys-devel/flex
+        virtual/pkg-config[>=0.9.0]
+        !x11-dri/eclectic-opengl
+        gl-vendor? ( dev-libs/libglvnd[>=0.2.0] )
+        opencl? ( dev-lang/clang[>=3.9] )
+        X? ( x11-proto/xorgproto )
+    build+run:
+        dev-libs/expat
+        sys-libs/zlib[>=1.2.3]
+        x11-dri/libdrm${LIBDRM_REQUIRED}
+        llvm? ( dev-lang/llvm[>=3.9.0][-static(-)] [[
+                note = [ meson build system doesn't support static llvm ]
+            ]]
+        )
+        sensors? (
+            sys-apps/lm_sensors[>=3.4.0]
+        )
+        opencl? (
+            dev-lang/llvm[>=3.9.0][-static(-)]
+            dev-libs/libclc
+        )
+        va? (
+            x11-libs/libX11
+            x11-libs/libva[>=1.6.0]
+            x11-libs/libxcb${XCBDRI2_REQUIRED}
+        )
+        valgrind? ( dev-util/valgrind )
+        vdpau? (
+            x11-libs/libX11
+            x11-libs/libvdpau[>=1.1]
+            x11-libs/libxcb${XCBDRI2_REQUIRED}
+        )
+        video_drivers:i915? ( x11-dri/libdrm[video_drivers:intel(+)] )
+        video_drivers:intel? ( x11-dri/libdrm[video_drivers:intel(+)] )
+        video_drivers:nouveau? ( x11-dri/libdrm[video_drivers:nouveau(-)] )
+        video_drivers:nouveau-legacy? ( x11-dri/libdrm[video_drivers:nouveau(-)] )
+        video_drivers:r300? ( x11-dri/libdrm[video_drivers:radeon(-)] )
+        video_drivers:radeon? (
+            dev-util/elfutils
+            x11-dri/libdrm[video_drivers:radeon(-)]
+        )
+        video_drivers:radeon-legacy? ( x11-dri/libdrm[video_drivers:radeon(-)] )
+        video_drivers:vc4? ( x11-dri/libdrm[video_drivers:vc4(-)] )
+        video_drivers:vmware? ( x11-dri/libdrm[video_drivers:vmware(-)] )
+        wayland? (
+            sys-libs/wayland[>=1.11]
+            sys-libs/wayland-protocols[>=1.8.0]
+        )
+        X? (
+            x11-libs/libICE
+            x11-libs/libX11[xcb(+)]
+            x11-libs/libXau
+            x11-libs/libxcb
+            x11-libs/libXdamage[>=1.1]
+            x11-libs/libXdmcp
+            x11-libs/libXext
+            x11-libs/libXfixes
+            x11-libs/libxshmfence[>=1.1]
+            x11-libs/libXxf86vm
+        )
+        xvmc? (
+            x11-libs/libX11
+            x11-libs/libXvMC[>=1.0.6]
+            x11-libs/libxcb${XCBDRI2_REQUIRED}
+        )
+    run:
+        opencl? (
+            dev-libs/ocl-icd
+        )
+        !media-libs/libtxc_dxtn [[
+                description = [ mesa now bundles libtxc_dxtn ]
+                resolution = uninstall-blocked-after
+        ]]
+    suggestion:
+        x11-dri/mesa-demos [[
+            description = [ Provides useful programs like glxinfo ]
+        ]]
+"
+
+mesa-meson_src_prepare() {
+    # Meson's meson build system requires pkg-config to do some
+    # fancy, custom stuff, which use pkg-config directly.
+    edo mkdir "${WORKBASE}"/bin
+    edo ln -s "/usr/$(exhost --build)/bin/${PKG_CONFIG}" "${WORKBASE}"/bin/pkg-config
+    export PATH="${WORKBASE}/bin:${PATH}"
+
+    meson_src_prepare
+}
+
+mesa-meson_src_configure() {
+    DRI_DRIVERS=( )
+    EGL_PLATFORMS=( )
+    GALLIUM_DRIVERS=( )
+    VULKAN_DRIVERS=( )
+
+    option video_drivers:intel              && DRI_DRIVERS+=( i915 i965 )
+    option video_drivers:nouveau-legacy     && DRI_DRIVERS+=( nouveau )
+    option video_drivers:nouveau            && DRI_DRIVERS+=( nouveau )
+    option video_drivers:radeon-legacy      && DRI_DRIVERS+=( r100 r200 )
+    
+    # TODO: pl111,freedeno,softpipe,vc4,etnaviv,imx,svga,swr
+    option video_drivers:gallium-swrast     && GALLIUM_DRIVERS+=( swrast )
+    option video_drivers:i915               && GALLIUM_DRIVERS+=( i915 )
+    option video_drivers:nouveau            && GALLIUM_DRIVERS+=( nouveau )
+    option video_drivers:r300               && GALLIUM_DRIVERS+=( r300 )
+    option video_drivers:radeon             && GALLIUM_DRIVERS+=( r600 radeonsi )
+    option video_drivers:vc4                && GALLIUM_DRIVERS+=( vc4 )
+    option video_drivers:virtio-gpu         && GALLIUM_DRIVERS+=( virgl )
+    option video_drivers:vmware             && GALLIUM_DRIVERS+=( svga )
+
+    option X                                && EGL_PLATFORMS+=( x11 )
+    option wayland                          && EGL_PLATFORMS+=( wayland )
+                                               EGL_PLATFORMS+=( drm )
+
+    option video_drivers:intel              && VULKAN_DRIVERS+=( intel )
+    option video_drivers:radeon             && VULKAN_DRIVERS+=( amd )
+
+    local MESA_SRC_CONFIGURE_PARAMS
+
+    MESA_SRC_CONFIGURE_PARAMS+=(
+	-Dbuildtype=release
+        -Dasm=true
+        -Ddri-drivers="$(IFS=, ; echo "${DRI_DRIVERS[*]}")"
+	-Dopengl=true
+        -Degl=true
+        -Dgallium-drivers=$(IFS=, ; echo "${GALLIUM_DRIVERS[*]}")
+        -Dgles1=true
+        -Dgles2=true
+        -Dlibunwind=false
+        -Dshared-glapi=true
+        -Dplatforms=$(IFS=, ; echo "${EGL_PLATFORMS[*]}")
+        -Dshader-cache=true
+        -Dvulkan-drivers=$(IFS=, ; echo "${VULKAN_DRIVERS[*]}")
+
+        # Missing dependency
+        -Dgallium-omx=false
+
+        # OSMesa needs either gallium_softpipe (GALLIUM_DRIVERS=swrast) or dri swrast
+        # (DRI_DRIVERS=SWRAST) to be enabled.
+        $(meson_switch video_drivers:gallium-swrast osmesa gallium classic)
+
+        $(meson_switch d3d9 gallium-nine)
+        $(meson_switch gl-vendor glvnd)
+        $(meson_switch opencl gallium-opencl icd disabled)
+        $(meson_switch sensors lmsensors)
+        $(meson_switch sensors gallium-extra-hud)
+        $(meson_switch texture-float)
+        $(meson_switch va gallium-va)
+        $(meson_switch valgrind)
+        $(meson_switch vdpau gallium-vdpau)
+        $(meson_switch X dri3)
+        $(meson_switch X glx dri disabled)
+        $(meson_switch xa gallium-xa)
+        $(meson_switch xvmc gallium-xvmc)
+	$(meson_switch osmesa osmesa classic none)
+    )
+
+    exmeson "${MESA_SRC_CONFIGURE_PARAMS[@]}" "${MESON_SOURCE}"
+}
+
+mesa-meson_src_install() {
+    dodir /usr
+
+    local host=$(exhost --target)
+    local X_alternatives=()
+
+    meson_src_install
+}
+

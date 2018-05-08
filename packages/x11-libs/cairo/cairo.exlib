@@ -1,0 +1,28 @@
+# Copyright 2008 Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+
+SUMMARY="Cairo is a 2D graphics library"
+DESCRIPTION="
+Cairo is a vector graphics library with cross-device output support. It
+currently supports the X Window System and in-memory image buffers as output
+targets. It is designed to produce identical output on all output media while
+taking advantage of display hardware acceleration when available (eg. through
+the X Render Extension). It provides a stateful user-level API with capabilities
+similar to the PDF 1.4 imaging model and provides operations including stroking
+and filling Bezier cubic splines, transforming and compositing translucent
+images, and antialiased text rendering.
+"
+HOMEPAGE="http://www.cairographics.org"
+if [[ $(( $(ever range 2) % 2)) == 1 ]]; then
+    DOWNLOADS="${HOMEPAGE}/snapshots/${PNV}.tar.xz"
+else
+    DOWNLOADS="${HOMEPAGE}/releases/${PNV}.tar.xz"
+fi
+
+LICENCES="LGPL-2.1 MPL-1.1"
+
+REMOTE_IDS="freecode:${PN}"
+
+UPSTREAM_DOCUMENTATION="${HOMEPAGE}/documentation/"
+UPSTREAM_RELEASE_NOTES="${HOMEPAGE}/news/${PNV}/"
+

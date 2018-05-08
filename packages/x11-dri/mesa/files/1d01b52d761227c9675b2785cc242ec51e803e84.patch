@@ -1,0 +1,36 @@
+Upstream: Yes
+From 1d01b52d761227c9675b2785cc242ec51e803e84 Mon Sep 17 00:00:00 2001
+From: Dylan Baker <dylan@pnwbakers.com>
+Date: Tue, 24 Apr 2018 14:15:47 -0700
+Subject: meson: Fix no-rtti in llvm detection
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Because I clearly wasn't thinking and clearly didn't do a good job
+testing. Sigh
+
+Fixes: c5a97d658ec19cc02719d7f86c1b0715e3d9ffc4
+       ("meson: fix builds against LLVM built without rtti")
+Signed-off-by: Dylan Baker <dylan.c.baker@intel.com>
+Reviewed-by: Marek Olšák <marek.olsak@amd.com>
+---
+ meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index 590ac40..52a1075 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1149,7 +1149,7 @@ if with_llvm
+   # programs, so we need to build all C++ code in mesa without rtti as well to
+   # ensure that linking works.
+   if dep_llvm.get_configtool_variable('has-rtti') == 'NO'
+-    cpp_args('-fno-rtti')
++    cpp_args += '-fno-rtti'
+   endif
+ elif with_amd_vk or with_gallium_radeonsi or with_gallium_swr
+   error('The following drivers require LLVM: Radv, RadeonSI, SWR. One of these is enabled, but LLVM is disabled.')
+-- 
+cgit v1.1
+
