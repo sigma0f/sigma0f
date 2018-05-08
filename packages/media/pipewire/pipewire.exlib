@@ -1,0 +1,52 @@
+# Copyright 2017 Rasmus Thomsen <Rasmus.thomsen@protonmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ user=PipeWire tag=${PV} ]
+require meson
+
+SUMMARY="PipeWire is a project that aims to greatly improve handling of audio and video under Linux"
+
+HOMEPAGE="http://pipewire.org/"
+
+LICENCES="LGPL-2.1"
+SLOT="0"
+
+MYOPTIONS="
+    doc
+    gstreamer [[ description = [ build Pipewire's GStreamer plugins ] ]]
+    sdl
+    v4l
+    X
+    alsa
+    ffmpeg
+"
+
+DEPENDENCIES="
+    build:
+        virtual/pkg-config
+        doc? ( app-doc/doxygen )
+    build+run:
+        ffmpeg? ( media/ffmpeg [[ note = [ automagic ] ]] )
+        sdl? ( media-libs/SDL:2 [[ note = [ automagic ] ]] )
+	v4l? ( media-libs/v4l-utils )
+        sys-apps/dbus
+        sys-apps/systemd
+        alsa? ( sys-sound/alsa-lib )
+        X? ( x11-libs/libX11 )
+        gstreamer? (
+            dev-libs/glib:2[>=2.32.0]
+            media-libs/gstreamer:1.0
+            media-plugins/gst-plugins-base:1.0
+        )
+"
+
+MESON_SRC_CONFIGURE_PARAMS=(
+
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
+    'doc enable_docs'
+    'doc enable_man'
+    'gstreamer enable_gstreamer'
+)
+

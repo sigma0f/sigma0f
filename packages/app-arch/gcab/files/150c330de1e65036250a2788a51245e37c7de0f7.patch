@@ -1,0 +1,29 @@
+Source/Upstream: Yes, fixed in git master
+Reason: build-sys: fix installing the includes
+
+From 150c330de1e65036250a2788a51245e37c7de0f7 Mon Sep 17 00:00:00 2001
+From: Timo Gurr <timo.gurr@gmail.com>
+Date: Thu, 1 Feb 2018 16:16:21 +0100
+Subject: [PATCH] build-sys: fix installing the includes
+
+https://bugzilla.gnome.org/show_bug.cgi?id=793388
+---
+ libgcab/meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libgcab/meson.build b/libgcab/meson.build
+index 6ff8801..f939617 100644
+--- a/libgcab/meson.build
++++ b/libgcab/meson.build
+@@ -9,7 +9,7 @@ enums = gnome.mkenums(
+   c_template : 'gcab-enums.c.etemplate',
+   h_template : 'gcab-enums.h.etemplate',
+   install_header : true,
+-  install_dir : 'include/libgcab-1.0/libgcab',
++  install_dir : join_paths(get_option('includedir'), 'libgcab-1.0/libgcab'),
+   symbol_prefix : 'gcab',
+   identifier_prefix : 'GCab',
+ )
+--
+libgit2 0.26.0
+

@@ -1,0 +1,11 @@
+# Copyright 2009 Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require pulseaudio
+
+PLATFORMS="~amd64 ~x86"
+
+DEFAULT_SRC_PREPARE_PATCHES+=(
+    "${FILES}"/dfb0460fb4743aec047cdf755a660a9ac2d0f3fb.patch
+)
+

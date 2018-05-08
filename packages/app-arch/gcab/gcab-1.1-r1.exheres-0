@@ -1,0 +1,47 @@
+# Copyright 2017-2018 Timo Gurr <tgurr@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require gnome.org [ suffix=tar.xz ] meson
+
+SUMMARY="GObject library and tool to create and manipulate cabinet files"
+HOMEPAGE="https://wiki.gnome.org/msitools"
+
+LICENCES="LGPL-2.1"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="
+    gobject-introspection
+    gtk-doc
+    ( linguas: bs cs da de el es eu fi fr fur gl hu id lt lv nb oc pl pt_BR pt ru sl sr sr@latin sv
+               tg tr zh_CN )
+"
+
+DEPENDENCIES="
+    build:
+        virtual/pkg-config[>=0.9.0]
+        gtk-doc? ( dev-doc/gtk-doc[>=1.14] )
+    build+run:
+        dev-libs/glib:2[>=2.44.0]
+        sys-libs/zlib
+        gobject-introspection? ( gnome-desktop/gobject-introspection:1[>=0.9.4] )
+"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+    "${FILES}"/150c330de1e65036250a2788a51245e37c7de0f7.patch
+    "${FILES}"/b9972fb3329c2b170132a51694b06d0d8189efd5.patch
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
+    'gobject-introspection introspection'
+    'gtk-doc docs'
+)
+MESON_SRC_CONFIGURE_TESTS=(
+    '-Dtests=true -Dtests=false'
+)
+
+src_configure() {
+    require_utf8_locale
+
+    meson_src_configure
+}
+

@@ -1,0 +1,38 @@
+Source/Upstream: Yes, fixed in git master
+Reason: build-sys: don't require git to build
+
+From b9972fb3329c2b170132a51694b06d0d8189efd5 Mon Sep 17 00:00:00 2001
+From: Marc-André Lureau <marcandre.lureau@redhat.com>
+Date: Tue, 13 Feb 2018 11:48:02 +0100
+Subject: [PATCH] build-sys: don't require git to build
+
+Check git is available before running it.
+
+Fixes:
+https://bugzilla.gnome.org/show_bug.cgi?id=793406
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+---
+ meson.build | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index f2ae0d2..861df60 100644
+--- a/meson.build
++++ b/meson.build
+@@ -5,7 +5,11 @@ project('gcab', 'c',
+   default_options : ['warning_level=2', 'c_std=c99'],
+ )
+ 
+-git_version = run_command(['git', 'describe', '--abbrev=4', 'HEAD']).stdout().strip().split('-')
++git_version = []
++git = find_program('git', required: false)
++if git.found()
++  git_version = run_command(git, 'describe', '--abbrev=4', 'HEAD').stdout().strip().split('-')
++endif
+ 
+ # libtool versioning
+ lt_current = '0'
+--
+libgit2 0.26.0
+
