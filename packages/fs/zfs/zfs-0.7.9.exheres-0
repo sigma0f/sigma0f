@@ -1,0 +1,15 @@
+# Copyright 2012 NAKAMURA Yoshitaka
+# Copyright 2018 sigma0f <sigma0f@pme.me>
+# Distributed under the terms of the GNU General Public License v2
+
+require zfs
+
+SLOT="0"
+PLATFORMS="~amd64"
+
+pkg_postinst() {
+    zfs_pkg_postinst
+
+    elog "This package is compatible with linux 2.6.32 to 4.16"
+}
+
