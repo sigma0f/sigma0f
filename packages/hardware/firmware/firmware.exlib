@@ -28,4 +28,7 @@ firmware_src_install() {
     doins "${FILES}"/iwlwifi-3160-17.ucode
     insinto /usr/$(exhost --target)/lib/firmware/intel-ucode
     doins "${FILES}"/intel-ucode/06-3c-03
+    insinto /usr/$(exhost --target)/lib/firmware/intel
+    doins "${FILES}"/intel/ibt-hw-37.7.bseq
+    doins "${FILES}"/intel/ibt-hw-37.7.10-fw-1.0.2.3.d.bseq
 }

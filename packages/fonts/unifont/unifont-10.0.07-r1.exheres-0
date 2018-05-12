@@ -1,0 +1,30 @@
+# Copyright 2018 sigma0f <sigma0f@pm.me>
+# Distributed under the terms of the GNU General Public License v2
+
+SUMMARY="The GNU Unifont and a collection of utilities from unifoundry.com"
+HOMEPAGE="http://unifoundry.com"
+
+DOWNLOADS="http://unifoundry.com/pub/${PNV}/font-builds/Unifont-APL8x16-${PV}.psf.gz"
+
+LICENCES="|| ( freedist GPL-2-font-exception GPL-2 )"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS=""
+
+DEPENDENCIES="
+    build+run:
+	virtual/unzip
+        sys-apps/systemd[>=238]
+"
+
+BUGS_TO="spoonb@exherbo.org"
+
+WORK=${WORKBASE}
+
+src_install() {
+    edo mv Unifont-APL8x16-${PV}.psf Unifont-APL8x16.psf
+    edo gzip Unifont-APL8x16.psf
+    insinto /usr/share/consolefonts
+    doins Unifont-APL8x16.psf.gz
+}
+
