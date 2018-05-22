@@ -1,0 +1,132 @@
+# Copyright 2008, 2009 Ingmar Vanhassel <ingmar@exherbo.org>
+# Copyright 2018 sigma0f <sigma0f@pm.me>
+# Distributed under the terms of the GNU General Public License v2
+# Based in part upon 'emacs-22.2-r2.ebuild' from Gentoo, which is:
+#     Copyright 1999-2008 Gentoo Foundation.
+
+require option-renames [ renames=[ 'gtk providers:gtk2' 'gtk3 providers:gtk3' ] ]
+require game alternatives elisp-module
+
+if [[ -z $(ever range 3) ]]; then
+    require gnu [ suffix=tar.xz ]
+else
+    require gnu [ alpha=true subdir=pretest suffix=tar.xz ]
+fi
+
+if [[ $(ever range 3) == rc* ]]; then
+    MY_PV=$(ever range 1-2)
+    MY_PNV=${PN}-${MY_PV}
+fi
+
+export_exlib_phases src_prepare src_configure
+
+SUMMARY="The extensible, customizable, self-documenting, real-time display editor"
+
+LICENCES="GPL-3"
+SLOT="0"
+MYOPTIONS="
+    X alsa dbus freetype gif gpm otf svg tiff tiff xim
+    (
+        freetype gif otf svg tiff xim
+        providers: gtk2 gtk3
+    ) [[ requires = X ]]
+    gconf [[
+        description = [ Allows emacs to determine the system font ]
+        requires = X
+    ]]
+    otf [[
+        description = [ Support for OpenType fonts ]
+        requires = freetype
+    ]]
+    xim [[
+        description = [ Support for X Input Method ]
+    ]]
+    X? ( providers: ijg-jpeg jpeg-turbo )
+"
+
+DEPENDENCIES="
+    build:
+        sys-apps/gawk
+        X? ( virtual/pkg-config )
+        alsa? ( virtual/pkg-config )
+        dbus? ( virtual/pkg-config )
+        svg? ( virtual/pkg-config )
+        providers:gtk2? ( virtual/pkg-config )
+        providers:gtk3? ( virtual/pkg-config )
+    build+run:
+        dev-libs/glib:2[>=2.28]
+        dev-libs/libxml2:2.0 [[ note = [ used for html rendering; could be made optional ] ]]
+        net-libs/liblockfile
+        sys-libs/ncurses
+        alsa? ( sys-sound/alsa-lib[>=1.0.0] )
+        X? (
+            media-libs/libpng:=
+            x11-data/xbitmaps
+            x11-libs/libICE
+            x11-libs/libXpm
+            x11-libs/libSM
+            x11-libs/libX11
+            gif? ( media-libs/giflib:= )
+            otf? ( dev-libs/libotf )
+            svg? ( gnome-desktop/librsvg:2[>=2.11.0] )
+            tiff? ( media-libs/tiff )
+            providers:gtk2? ( x11-libs/gtk+:2[>=2.10] )
+            providers:gtk3? ( x11-libs/gtk+:3[>=3.0] )
+            providers:ijg-jpeg? ( media-libs/jpeg:= )
+            providers:jpeg-turbo? ( media-libs/libjpeg-turbo )
+        )
+        dbus? ( sys-apps/dbus[>=1.0.0] )
+        freetype? (
+            media-libs/fontconfig[>=2.2.0]
+            media-libs/freetype:2
+            x11-libs/libXft[>=0.13.0]
+            x11-libs/libXrender [[ note = [ because of libXft ] ]]
+        )
+        gconf? ( gnome-platform/GConf:2 )
+        gpm? ( sys-libs/gpm )
+   suggestion:
+        app-spell/aspell [[ description = [ For ispell and flyspell mode ] ]]
+"
+
+WORK=${WORKBASE}/${MY_PNV-${PNV}}
+
+emacs_src_prepare() {
+    # Compressing *.el files saves 25MB diskspace, which is not worth it on modern systems
+    edo sed -i -e 's/@GZIP_PROG@//' {.,leim}/Makefile.in
+    default
+}
+
+emacs_src_configure() {
+    config_params=(
+        --infodir=/usr/share/info/emacs
+        --with-file-notification=inotify
+        --with-pkg-config-prog=/usr/$(exhost --target)/bin/$(exhost --tool-prefix)pkg-config
+        --without-compress-info # applies to manpages as well
+        --without-gsettings
+        --without-hesiod
+        --without-imagemagick
+        --without-kerberos
+        --without-kerberos5
+        --without-m17n-flt
+        --without-selinux
+    )
+
+    config_withs=(
+        'X x' 'X jpeg' 'X png' 'X xpm'
+        'alsa sound'
+        'freetype xft'
+        'otf libotf'
+        'svg rsvg'
+        'dbus' 'gconf' 'gif' 'gpm' 'tiff' 'xim'
+    )
+
+    local toolkit=no
+    option providers:gtk2 && toolkit=gtk;
+    option providers:gtk3 && toolkit=gtk3;
+
+    econf \
+        "${config_params[@]}" \
+        $(for s in "${config_withs[@]}" ; do option_with ${s} ; done ) \
+        $(option providers:gtk2 gtk || option providers:gtk3 gtk3 || echo --without-toolkit-scroll-bars) \
+        --with-x-toolkit=${toolkit}
+}

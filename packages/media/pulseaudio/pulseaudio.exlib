@@ -116,7 +116,6 @@ DEPENDENCIES="
     suggestion:
         media-sound/pavucontrol [[ description = [ Provides a simple GTK based volume mixer tool ] ]]
         media-sound/pulseaudio-dlna [[ description = [ Stream to DLNA/UPNP and Chromecast devices via PulseAudio ] ]]
-        sys-sound/oss [[ description = [ Provides an alternative sound architecture instead of ALSA ] ]]
         sound-themes/sound-theme-freedesktop [[ description = [ Sample PulseAudio event sounds mentioned in default.pa ] ]]
 "
 
@@ -129,7 +128,6 @@ DEFAULT_SRC_CONFIGURE_PARAMS=(
     --localstatedir=/var
     --enable-alsa # udev needs alsa or oss support
     --enable-dbus # recommended by upstream
-    --enable-manpages
     --enable-memfd
     --disable-tests
     --disable-samplerate

@@ -1,6 +1,8 @@
-# Copyright sigma0f <sigma0f@pm.me>
+# Copyright 2011 Paul Seidler <sepek@exherbo.org>
 # Distributed under the terms of the GNU General Public License v2
 
-require libostree
+require libnl
 
+SLOT="3.0"
 PLATFORMS="~amd64"
+
