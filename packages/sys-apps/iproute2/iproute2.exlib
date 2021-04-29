@@ -17,24 +17,24 @@ else
 fi
 
 SUMMARY="Collection of utilities for controlling networking and traffic control in Linux"
-DESCRIPTION="A replacement for the inadequately behaving ifconfig/route programs in modern networks."
-HOMEPAGE="https://wiki.linuxfoundation.org/networking/${PN}"
-DOWNLOADS="
-    mirror://kernel/linux/utils/net/${PN}/${PNV}.tar.${SUFFIX}
-    https://dev.exherbo.org/~philantrop/distfiles/${PNV}.tar.${SUFFIX}
+DESCRIPTION="
+A replacement for the inadequately behaving ifconfig/route programs in modern networks.
 "
-
-REMOTE_IDS="freecode:${PN}"
+HOMEPAGE="https://wiki.linuxfoundation.org/networking/${PN}"
+DOWNLOADS="mirror://kernel/linux/utils/net/${PN}/${PNV}.tar.${SUFFIX}"
 
 LICENCES="GPL-2"
 SLOT="0"
 MYOPTIONS="
+    bpf
     atm [[ description = [ Add ATM support in tc program ] ]]
     berkdb [[ description = [ Build ARP daemon ] ]]
 "
 
 DEPENDENCIES="
     build:
+        sys-devel/bison
+        sys-devel/flex
         sys-kernel/linux-headers$(exparam headers_version)
         virtual/pkg-config
     build+run:
@@ -52,11 +52,7 @@ fi
 if ever at_least 4.7.0 ; then
     DEPENDENCIES+="
         build+run:
-            providers:elfutils? ( dev-util/elfutils )
-            providers:libelf? ( dev-libs/libelf )
-    "
-    MYOPTIONS+="
-        ( providers: elfutils libelf ) [[ number-selected = exactly-one ]]
+         bpf? ( virtual/libelf )
     "
 fi
 
@@ -64,6 +60,13 @@ if ever at_least 4.16.0 ; then
     DEPENDENCIES+="
         build+run:
             sys-libs/libcap
+    "
+fi
+
+if ever at_least 4.20.0 ; then
+    DEPENDENCIES+="
+        build+run:
+            dev-libs/libbsd [[ note = [ automagic ] ]]
     "
 fi
 
@@ -81,6 +84,12 @@ if ever at_least 4.7.0 ; then
     DEFAULT_SRC_COMPILE_PARAMS+=( V=1 )
 fi
 
+if ever at_least 4.18.0 ; then
+    DEFAULT_SRC_COMPILE_PARAMS+=(
+        NETNS_RUN_DIR=/run/netns
+    )
+fi
+
 DEFAULT_SRC_INSTALL_PARAMS+=(
     SBINDIR=/usr/$(exhost --target)/bin
     LIBDIR=/usr/$(exhost --target)/lib
@@ -94,10 +103,10 @@ iproute2_src_prepare() {
     default
 
     # use system headers
-    if ever at_least 4.14.0 ; then
-        edo rm -r include/netinet
+    if ever at_least 4.14.0 && [[ "$(exhost --target)" != *-musl* ]]; then
+        edo rm -rf include/netinet
     else
-        edo rm -r include/{linux,netinet}
+        edo rm -rf include/{linux,netinet}
     fi
 
     # honor user CFLAGS, nuke -Werror
@@ -113,14 +122,14 @@ iproute2_src_prepare() {
     fi
 
     # use /run instead of /var/run
-    if ever at_least 3.19.0 ; then
+    edo sed \
+        -e 's:/var/run:/run:g' \
+        -i include/namespace.h
+
+    if ! ever at_least 5.7.0 ; then
         edo sed \
             -e 's:/var/run:/run:g' \
-            -i include/namespace.h man/man8/ip-netns.8
-    else
-        edo sed \
-            -e 's:/var/run:/run:g' \
-            -i ip/ipnetns.c man/man8/ip-netns.8
+            -i man/man8/ip-netns.8
     fi
 }
 

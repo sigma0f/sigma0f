@@ -1,0 +1,45 @@
+# Copyright 2017-2019 Marvin Schmidt <marv@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ user=facebook release=v${PV} suffix=tar.gz ] \
+    meson
+
+SUMMARY="Zstandard - Fast real-time compression algorithm"
+DESCRIPTION="
+Zstandard is a real-time compression algorithm, providing high compression ratios. It offers a very
+wide range of compression / speed trade-off, while being backed by a very fast decoder. It also
+offers a special mode for small data, called dictionary compression, and can create dictionaries
+from any sample set.
+"
+HOMEPAGE+=" https://facebook.github.io/zstd/"
+
+LICENCES="BSD-3"
+SLOT="0"
+PLATFORMS="~amd64 ~armv7 ~armv8"
+MYOPTIONS=""
+
+DEPENDENCIES=""
+
+MESON_SOURCE=${WORKBASE}/${PNV}/build/meson
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+    "${FILES}"/0001-tests-Remove-test-that-requires-valgrind.patch
+    "${FILES}"/${PN}-1.4.9-fix-build.patch
+)
+
+MESON_SRC_CONFIGURE_PARAMS=(
+    -Ddebug_level=0
+    -Dstatic_runtime=true
+    -Dbacktrace=false
+    -Dbin_programs=true
+    -Dbin_contrib=false
+    -Dmulti_thread=enabled    
+    -Dlz4=disabled
+    -Dlzma=disabled
+    -Dzlib=disabled
+)
+
+MESON_SRC_CONFIGURE_TESTS=(
+    '-Dbin_tests=true -Dbin_tests=false'
+)
+

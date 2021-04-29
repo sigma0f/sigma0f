@@ -1,0 +1,74 @@
+# Copyright 2018-2020 Danilo Spinella <danyspin97@protonmail.com>
+# Copyright 2019 Maxime SORIN <maxime.sorin@clever-cloud.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require cargo [ disable_default_features=true rust_minimum_version=1.41.0 ] \
+        github [ user='jwilm' tag=v${PV} ] \
+        bash-completion zsh-completion
+
+export_exlib_phases src_install
+
+SUMMARY="A cross-platform, GPU-accelerated terminal emulator"
+DESCRIPTION="
+Alacritty is focused on simplicity and performance. The performance goal means it should be faster
+than any other terminal emulator available. The simplicity goal means that it doesn't have features
+such as tabs or splits (which can be better provided by a window manager or terminal multiplexer)
+nor niceties like a GUI config editor.
+"
+
+LICENCES="Apache-2.0"
+SLOT="0"
+
+MYOPTIONS="
+    fish-completion [[
+        description = [ Install completion files for the fish shell ] ]]
+    ( X wayland ) [[ number-selected = at-least-one ]]
+"
+
+DEPENDENCIES="
+    build+run:
+        media-libs/fontconfig
+        media-libs/freetype:=
+        sys-libs/zlib
+        x11-dri/mesa[?X]
+    run:
+        sys-libs/ncurses[>=6.2] [[
+            note = [ First version to ship 'alacritty' terminfo ]
+        ]]
+"
+
+BUGS_TO="danyspin97@protonmail.com"
+
+# --no-default-features is not allowed in the root of a virtual package
+# such as the root of the git repository
+# move in the alacritty directory instead
+ALACRITTY_ROOT="${WORK}"
+WORK="${WORK}"/${PN}
+
+ECARGO_FEATURE_ENABLES=(
+    'X x11'
+    'wayland wayland'
+)
+
+ZSH_COMPLETIONS=( extra/completions/_${PN} )
+BASH_COMPLETIONS=( extra/completions/${PN}.bash )
+
+alacritty_src_install() {
+    edo cd "${ALACRITTY_ROOT}"
+    dobin target/release/${PN}
+
+    insinto /usr/share/applications
+    doins extra/linux/Alacritty.desktop
+
+    insinto /usr/share/pixmaps
+    newins extra/logo/${PN}-term.svg Alacritty.svg
+
+    insinto /usr/share/man/man1
+    newins extra/${PN}.man ${PN}.1
+
+    #emagicdocs
+
+    #zsh-completion_src_install
+    #bash-completion_src_install
+}
+

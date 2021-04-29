@@ -1,0 +1,54 @@
+# Copyright 2013 Marc-Antoine Perennou <keruspe@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require meson
+
+export_exlib_phases src_install
+
+SUMMARY="Wrapper library for evdev devices"
+HOMEPAGE="https://www.freedesktop.org/wiki/Software/${PN}"
+
+LICENCES="MIT"
+SLOT="0"
+MYOPTIONS="doc shared"
+
+# Needs acess to /dev/input/event*
+RESTRICT="test"
+
+DEPENDENCIES="
+    build:
+        virtual/pkg-config
+        doc? ( app-doc/doxygen )
+    test:
+        dev-libs/check[>=0.9.9]
+"
+
+MESON_SRC_CONFIGURE_PARAMS=(
+    -Dcoverity=false
+    -Dbuildtype=release
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=()
+
+MESON_SRC_CONFIGURE_OPTION_FEATURES=(
+    'doc documentation'
+)
+
+MESON_SRC_CONFIGURE_OPTION_ENABLES=()
+
+MESON_SRC_CONFIGURE_OPTIONS=(
+    'shared --default-library=shared --default-library=static'
+)
+
+MESON_SRC_CONFIGURE_TESTS=( '-Dtests=enabled -Dtests=disabled' )
+
+libevdev_src_install() {
+    meson_src_install
+
+    if option doc ; then
+        edo pushd doc
+        dodoc -r html
+        edo popd
+    fi
+}
+

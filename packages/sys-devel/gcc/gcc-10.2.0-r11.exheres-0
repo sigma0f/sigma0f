@@ -1,0 +1,15 @@
+# Copyright 2012 © Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require gcc
+
+PLATFORMS="~amd64"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+    "${FILES}"/10/0001-exherbo-multi-arch-paths.patch
+    "${FILES}"/10/0002-driver-Do-not-pass-an-empty-sysroot.patch
+    "${FILES}"/10/0003-Add-fortify-headers-support-for-non-glibcs.patch
+    "${FILES}"/10/0004-plugins-do-not-hardcode-objdump-sometimes.patch
+    "${FILES}"/10/0005-Fix-various-_FOR_BUILD-and-related-variables.patch
+)
+

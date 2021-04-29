@@ -1,0 +1,35 @@
+# MIT licences
+require meson \
+        alternatives \
+        toolchain-funcs
+
+myexparam hp_pn="${MY_PN:-${PN/#e/E}}"
+myexparam pn="${MY_PN:-${PN}}"
+myexparam scm_pn="${MY_PN:-$(exparam pn)}"
+myexparam pv="${MY_PV:-${PV}}"
+myexparam pnv="${MY_PNV:-$(exparam pn)-$(exparam pv)}"
+
+HOMEPAGE="http://trac.enlightenment.org/e/wiki/$(exparam hp_pn)"
+
+BASE_DOWNLOADS="http://download.enlightenment.org/rel"
+
+case $(exparam pn) in
+    "efl")
+        BASE_DOWNLOADS="${BASE_DOWNLOADS}/libs/$(exparam pn)"
+        ;;
+    "econnman"|"enlightenment"|"ephoto"|"epour"|"terminology"|"rage"|"evisum")
+        BASE_DOWNLOADS="${BASE_DOWNLOADS}/apps/$(exparam pn)"
+        ;;
+esac
+
+DOWNLOADS="${BASE_DOWNLOADS}/$(exparam pnv).tar.xz"
+
+WORK="${WORKBASE}/$(exparam pnv)"
+
+SLOT="17"
+
+DEPENDENCIES+="
+    build:
+        virtual/pkg-config
+"
+

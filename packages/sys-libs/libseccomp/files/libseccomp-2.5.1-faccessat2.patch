@@ -1,0 +1,16 @@
+Source: Timo Gurr <tgurr@exherbo.org>
+Upstream: Reported, https://github.com/seccomp/libseccomp/issues/314
+Reason: Add missing faccessat2 call
+
+diff -Naur libseccomp-2.5.1/include/seccomp-syscalls.h libseccomp-2.5.1.new/include/seccomp-syscalls.h
+--- libseccomp-2.5.1/include/seccomp-syscalls.h	2020-11-16 23:04:59.763209755 +0100
++++ libseccomp-2.5.1.new/include/seccomp-syscalls.h	2021-02-25 00:55:22.952300084 +0100
+@@ -564,6 +564,8 @@
+ 
+ #define __SNR_faccessat			__NR_faccessat
+ 
++#define __SNR_faccessat2			__NR_faccessat2
++
+ #ifdef __NR_fadvise64
+ #define __SNR_fadvise64			__NR_fadvise64
+ #else

@@ -1,0 +1,24 @@
+From e74f260e0595b41ed72a4c87228351efa11473f5 Mon Sep 17 00:00:00 2001
+From: Paul Seidler <sepek@exherbo.org>
+Date: Tue, 29 Nov 2011 21:59:28 +0100
+Subject: [PATCH 2/3] Respect PYTHON_DISABLE_MODULES in setup.py
+
+Based on patch by Ali Polatel, from Gentoo
+Upstream: no
+---
+ setup.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/setup.py b/setup.py
+index 6cbbec9e12..b2dd529756 100644
+--- a/setup.py
++++ b/setup.py
+@@ -24,7 +24,7 @@ from distutils.spawn import find_executable
+ TEST_EXTENSIONS = True
+
+ # This global variable is used to hold the list of modules to be disabled.
+-DISABLED_MODULE_LIST = []
++DISABLED_MODULE_LIST = os.environ.get("PYTHON_DISABLE_MODULES", "").split()
+
+
+ def get_platform():

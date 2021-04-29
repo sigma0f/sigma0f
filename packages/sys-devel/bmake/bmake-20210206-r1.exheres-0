@@ -1,0 +1,7 @@
+require bmake
+
+PLATFORMS="~amd64"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+	"${FILES}"/${PV}-fix-link-flags.patch	
+)

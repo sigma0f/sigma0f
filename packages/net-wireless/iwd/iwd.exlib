@@ -1,0 +1,74 @@
+# Copyright 2016 Marc-Antoine Perennou <keruspe@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+if ever is_scm; then
+    SCM_REPOSITORY="https://git.kernel.org/pub/scm/network/wireless/iwd.git"
+    SCM_ell_REPOSITORY="https://git.kernel.org/pub/scm/libs/ell/ell.git"
+    SCM_ell_UNPACK_TO="${WORKBASE}/ell"
+    SCM_SECONDARY_REPOSITORIES="ell"
+    require scm-git autotools [ supported_autoconf=[ 2.5 ] supported_automake=[ 1.16 1.15 ] ]
+    DOWNLOADS=""
+else
+    DOWNLOADS="mirror://kernel/linux/network/wireless/${PNV}.tar.xz"
+fi
+
+require systemd-service
+
+export_exlib_phases src_install
+
+SUMMARY="Wireless daemon for Linux"
+HOMEPAGE="https://git.kernel.org/cgit/network/wireless/${PN}.git/"
+
+LICENCES="LGPL-2.1"
+SLOT="0"
+MYOPTIONS="
+    debug
+    doc
+    monitor
+    wired
+    ofono
+    ( parts: binaries documentation configuration data )
+"
+
+DEPENDENCIES="
+    build:
+    build+run:
+	sys-apps/dbus[>=1.12.16]
+"
+
+DEFAULT_SRC_CONFIGURE_PARAMS+=(
+    --localstatedir=/var
+    --enable-optimization
+    --enable-pie
+    --with-systemd-unitdir="${SYSTEMDSYSTEMUNITDIR}"
+    --with-systemd-modloaddir="/usr/$(exhost --target)/lib/modules-load.d"
+    --with-systemd-networkdir="/usr/$(exhost --target)/lib/systemd/network"
+)
+
+DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
+	'doc manual-pages'
+	debug
+	monitor
+	wired
+	ofono
+)
+
+# Some tests are failing because they require unmerged commits into the Linux tree
+# and the kernel needs some options to be enabled (the same one would enable to make iwd run)
+# which aren't on the CI (yet?)
+RESTRICT="test"
+
+iwd_src_install() {
+    default
+
+    expart binaries /usr/$(exhost --target)/{bin,libexec}
+    expart documentation /usr/share/doc
+    expart data /usr/$(exhost --target)/lib/{systemd/network,modules-load.d}
+    expart configuration /usr/$(exhost --target)/lib/systemd/system
+    expart configuration /usr/share/dbus-1
+    
+    keepdir /var/lib/${PN}
+
+    edo find "${IMAGE}" -type d -empty -delete
+}
+

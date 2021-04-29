@@ -1,6 +1,0 @@
-# Copyright sigma0f <sigma0f@pm.me>
-# Distributed under the terms of the GNU General Public License v2
-
-require libostree
-
-PLATFORMS="~amd64"

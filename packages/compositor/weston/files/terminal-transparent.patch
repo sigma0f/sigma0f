@@ -1,0 +1,13 @@
+diff --git a/clients/terminal.c b/clients/terminal.c
+index ec76764..da0be3c 100644
+--- a/clients/terminal.c
++++ b/clients/terminal.c
+@@ -2949,7 +2949,7 @@ terminal_create(struct display *display)
+ 	terminal->widget = window_frame_create(terminal->window, terminal);
+ 	terminal->title = xstrdup("Wayland Terminal");
+ 	window_set_title(terminal->window, terminal->title);
+-	widget_set_transparent(terminal->widget, 0);
++	widget_set_transparent(terminal->widget, 0.5);
+ 
+ 	init_state_machine(&terminal->state_machine);
+ 	init_color_table(terminal);

@@ -1,0 +1,40 @@
+# Copyright 2008 Daniel Mierswa <impulze@impulze.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ release=v${PV} suffix=tar.xz ] meson
+
+SUMMARY="An implementation of the Unicode Bidirectional Algorithm (bidi)"
+DESCRIPTION="
+A free software library that claims to implement a completly standard-compatible Unicode
+Bidirectional algorithm.
+"
+
+LICENCES="LGPL-2.1"
+SLOT="0"
+MYOPTIONS="shared doc"
+
+DEPENDENCIES="
+    test:
+        dev-lang/python:*[>=3]
+"
+
+MESON_SRC_CONFIGURE_PARAMS+=(
+    -Ddeprecated=false
+    -Dbin=true
+    -Dbuildtype=release    
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
+    'doc docs'
+)
+
+MESON_SRC_CONFIGURE_OPTION_FEATURES=()
+
+MESON_SRC_CONFIGURE_OPTION_ENABLES=()
+
+MESON_SRC_CONFIGURE_OPTIONS=(
+    'shared --default-library=shared --default-library=static'
+)
+
+MESON_SRC_CONFIGURE_TESTS+=( '-Dtests=true -Dtests=false' )
+

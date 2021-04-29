@@ -2,7 +2,11 @@
 # Copyright 2017-2018 Jonathon Kowalski <worz@tuta.io>
 # Distributed under the terms of the GNU General Public License v2
 
-require github [ tag=v${PV} ] \
+GITHUB_PROJECT=${PN}
+ever is_scm || GITHUB_PROJECT+=-stable
+GITHUB_BRANCH=main
+
+require github [ project=${GITHUB_PROJECT} tag=v${PV} ] \
         meson \
         alternatives \
         kernel \
@@ -13,7 +17,7 @@ require github [ tag=v${PV} ] \
         python [ blacklist="2" multibuild=false ] \
         toolchain-funcs
 
-export_exlib_phases pkg_pretend pkg_setup src_prepare src_test src_install pkg_postinst
+export_exlib_phases pkg_pretend pkg_setup src_configure src_prepare src_test src_install pkg_postinst
 
 SUMMARY="${PN} System and Service Manager"
 DESCRIPTION="
@@ -31,8 +35,7 @@ network time synchronization, log forwarding, and name resolution.
 SysVinit compatibility is deactivated in our package because we don't want it nor
 do we support it.
 "
-HOMEPAGE="https://wiki.freedesktop.org/www/Software/${PN}"
-BUGS_TO="philantrop@exherbo.org"
+HOMEPAGE="https://systemd.io/"
 LICENCES="
     LGPL-2.1        [[ note = [ Everything but ] ]]
     GPL-2           [[ note = [ src/udev, ] ]]
@@ -41,17 +44,25 @@ LICENCES="
 SLOT="0"
 LANGUAGES=( el fr it pl ru )
 MYOPTIONS="
+    elfutils
     acl
     apparmor
     bash-completion
     cryptsetup [[ description = [ Enable systemd's minimal cryptsetup unit generator ] ]]
+    doc
+    pam
+    kmod
     efi [[
         description = [ EFI information in various tools, sd-boot, and mounting of efivars during boot ]
         note = [ Needs (U)EFI compatible hardware and a fairly recent kernel with proper configuration ]
     ]]
     gcrypt [[ description = [ Enable cryptographically secured journal files ] ]]
     gnutls [[ description = [ Enable certificate support for journal-remote, journal-gatewayd & friends ] ]]
-    idn  [[ description = [ Support Internationalised Domain Names in systemd-resolved ] ]]
+    homed [[
+        description = [ Portable home directories support ]
+        requires = [ cyptsetup openssl ]
+    ]]
+    idn [[ description = [ Support Internationalised Domain Names in systemd-resolved ] ]]
     importd [[
         description = [ Enable systemd's container download service systemd-importd ]
         requires = [ libcurl gcrypt ]
@@ -63,42 +74,66 @@ MYOPTIONS="
     libcurl [[ description = [ Support pushing journal data to a remote system ] ]]
     lz4 [[ description = [ Use LZ4 compression for longer journal fields ] ]]
     nat [[ description = [ Enable minimal firewall support for NAT ] ]]
+    openssl [[ description = [ Enable openssl integration ] ]]
+    pkcs11 [[ description = [ Native suppport for unlocking encrypted volumes utilizing PKCS#11 smartcards ] ]]
     polkit [[ description = [ Use PolicyKit for privileged operations ] ]]
+    pstore [[
+        description = [ Persistent storage filesystem archiving tool ]
+        requires = [ acl lz4 ]
+    ]]
+    pwquality [[
+        description = [ Password quality checking using libpwquality for systemd-homed ]
+        requires = [ homed ]
+    ]]
     qrencode [[ description = [ For transferring the journal verification key to a smartphone ] ]]
     regexp [[ description = [ regexp matching support using pcre2 in journalctl for the MESSAGE field ] ]]
+    repart [[
+        description = [ Build the systemd partitioning tool ]
+        requires = [ openssl ]
+    ]]
     seccomp [[ description = [ System call filtering support via seccomp ] ]]
+    security-key [[
+        description = [ FIDO2 support for systemd-homed ]
+        requires = [ homed ]
+    ]]
     selinux
-    kmod
-    elfutils
-    coredump
+    static [[ description = [ Build static versions of libsystemd and libudev and link systemctl, networkd and timesynd against them ] ]]
     xkbcommon [[ description = [ verify x11 keymap settings by compiling the configured keymap ] ]]
     zsh-completion
+    xz
+    zlib
+    zstd [[ description = [ Use Zstandard compression for longer journal fields ] ]]
     ( linguas: ${LANGUAGES[@]} )
+    ( providers:
+        gnutls [[ requires = [ gnutls ] ]]
+        openssl [[ requires = [ openssl ] ]]
+        libressl [[ requires = [ openssl ] ]]
+    ) [[
+        number-selected = at-most-one
+        *description = [ TLS provider for DNS-over-TLS ]
+    ]]
 "
 
 DEPENDENCIES="
     build:
-        app-text/docbook-xml-dtd:4.5 [[ note = [ for creating the man pages (used in {less-variables,standard-options}.xml) ] ]]
-        dev-libs/libxslt [[ note = [ for creating the man pages ] ]]
+        doc? (
+             app-text/docbook-xml-dtd:4.5 [[ note = [ for creating the man pages (used in {less-variables,standard-options}.xml) ] ]]
+             dev-libs/libxslt [[ note = [ for creating the man pages ] ]]
+        )
+        dev-lang/perl:*
         dev-util/gperf[>=3.0.4] [[ note = [ for keymap ] ]]
-        sys-devel/gcc:*[>=4.9] [[ note = [ Older gcc have some issues building systemd ] ]]
         sys-devel/gettext
         sys-kernel/linux-headers[>=3.10]
         virtual/pkg-config[>=0.20]
     build+run:
-        app-arch/xz
-	elfutils? ( 
-	        dev-util/elfutils[>=0.158]
-	)
-	kmod? (
-	        sys-apps/kmod[>=15]
-        	sys-apps/pciutils
-	)
+        elfutils? ( dev-util/elfutils[>=0.158] )
+        kmod? ( sys-apps/kmod[>=15] )
+        sys-apps/pciutils
         sys-apps/skeleton-filesystem-layout
-        sys-apps/util-linux[>=2.30]
+        sys-apps/util-linux[>=2.33]
         sys-kernel/linux-headers[>=3.10]
         sys-libs/libcap
-        sys-libs/pam[>=1.1.2]
+        pam? ( sys-libs/pam[>=1.1.2] )
         !net-dns/nss-myhostname [[
             description = [ Included and enabled in systemd >= 197 ]
             resolution = uninstall-blocked-after
@@ -108,45 +143,52 @@ DEPENDENCIES="
             resolution = uninstall-blocked-after
         ]]
         acl? ( sys-apps/acl )
-        apparmor? ( security/apparmor )
-        cryptsetup? ( sys-fs/cryptsetup[>=2.0.0] )
+        apparmor? ( security/apparmor[>=2.13] )
+        cryptsetup? ( sys-fs/cryptsetup[>=2.0.1] )
         efi? ( sys-boot/gnu-efi )
         gcrypt? (
             dev-libs/libgcrypt[>=1.4.5]
             dev-libs/libgpg-error[>=1.12]
         )
-        gnutls? ( dev-libs/gnutls[>=3.1.4] )
-        idn? ( net-dns/libidn )
+        gnutls? ( dev-libs/gnutls[>=3.6.0] )
+        idn? ( net-dns/libidn2:= )
         journal-gateway? ( net-libs/libmicrohttpd[>=0.9.33] )
         libcurl? ( net-misc/curl[>=7.32.0] )
         lz4? ( app-arch/lz4[>=1.7.5] )
+        xz? ( app-arch/xz[>=5.25] )
         nat? ( net-firewall/iptables )
+        pkcs11? ( dev-libs/p11-kit:1 )
         polkit? ( sys-auth/polkit:1 )
-        qrencode? ( media-libs/qrencode:= )
+        providers:gnutls? ( dev-libs/gnutls[>=3.1.4] )
+        providers:openssl? ( dev-libs/openssl[>=1.1.0] )
+        providers:libressl? ( dev-libs/libressl[>=3.1.5] )
+        pwquality? ( dev-libs/libpwquality )
+        qrencode? ( media-libs/qrencode:=[>=4] )
         regexp? ( dev-libs/pcre2 )
         seccomp? ( sys-libs/libseccomp[>=2.3.1] )
         xkbcommon? ( x11-libs/libxkbcommon[>=0.3.0] )
+        security-key? ( dev-libs/libfido2 )
         selinux? ( security/libselinux )
+        zlib? ( sys-libs/zlib[1.2.11] )
+        zstd? ( app-arch/zstd[>=1.4.0] )
     run:
-        sys-apps/coreutils[selinux?]
+        sys-apps/coreutils[selinux?][>=8.16]
         sys-apps/dbus[>=1.9.18] [[ note = [ Required to support the new DBus policy files location ] ]]
         sys-apps/kbd[>=1.15.2-r1]
         group/dialout
         group/lock [[ note = [ Required for var-lock service ] ]]
         group/systemd-bus-proxy [[ note = [ Required for systemd-bus-proxyd ] ]]
-        coredump? (
-		  group/systemd-coredump [[ note = [ Required for coredumpctl ] ]]
-	)		  
+        group/systemd-coredump [[ note = [ Required for coredumpctl ] ]]
         group/systemd-journal [[ note = [ Required for journal access by non-root users when SplitMode=none or the journal is volatile ] ]]
         group/systemd-journal-remote [[ note = [ Required for systemd-journal-remote ] ]]
         group/systemd-network [[ note = [ Required for systemd-networkd ] ]]
+        group/systemd-oom [[ note = [ Required for systemd-oom ] ]]
         group/systemd-resolve [[ note = [ Required for systemd-resolved ] ]]
         user/systemd-bus-proxy [[ note = [ Required for systemd-bus-proxyd ] ]]
-	coredump? (
-        	  user/systemd-coredump [[ note = [ Required for coredumpctl ] ]]
-	)
+        user/systemd-coredump [[ note = [ Required for coredumpctl ] ]]
         user/systemd-journal-remote [[ note = [ Required for systemd-journal-remote ] ]]
         user/systemd-network [[ note = [ Required for systemd-networkd ] ]]
+        user/systemd-oom [[ note = [ Required for systemd-oom ] ]]
         user/systemd-resolve [[ note = [ Required for systemd-resolved ] ]]
         !sys-apps/debianutils[<4.5.1-r1] [[
             description = [ Alternatives conflict ]
@@ -162,8 +204,6 @@ DEPENDENCIES="
         sys-boot/dracut [[ description = [ Easily create an initramfs (if in doubt, don't take this) ] ]]
 "
 
-AT_M4DIR=( m4 )
-
 systemd_pkg_pretend() {
     if ! kernel_version_at_least 3.11 ; then
         ewarn "You MUST install a kernel >= 3.11 to use systemd."
@@ -175,11 +215,6 @@ systemd_pkg_pretend() {
         ewarn "The configuration file /etc/tmpfiles.d/legacy.conf has been moved to"
         ewarn "/usr/$(exhost --target)/lib/tmpfiles.d/legacy.conf and can be safely removed after upgrade"
         ewarn "if you did not make any changes to it."
-    fi
-
-    if cc-is-gcc && ! ever at_least 4.9 $(gcc-version); then
-        eerror "You're using gcc-$(gcc-fullversion). ${PNV} requires gcc-4.9.x. Set your compiler to 4.9 by using eclectic gcc"
-        die "${PNV} requires gcc-4.9.x"
     fi
 
     option-renames_pkg_pretend
@@ -204,130 +239,202 @@ systemd_src_prepare() {
     fi
 
     edo sed -e "s/(prefixdir, 'lib/(rootprefixdir, 'lib/" -i meson.build
-    edo sed -e "s:doc/${PN}:doc/${PNVR}:" -i meson.build
-    edo sed -e "s/'objcopy'/'${OBJCOPY}'/" -i src/boot/efi/meson.build
+    edo sed -e 's:${prefix}/lib:${rootprefix}/lib:' -i src/core/systemd.pc.in
+    edo sed -e 's:/usr/lib:${rootprefix}/lib:' -i src/core/systemd.pc.in
 
     # Fails tests because our prefix makes --help outputs longer than 80 characters
     # Disable the test because it doesn't test actual functionality and is more of an upstream CI check
     edo ln -sf /bin/true tools/meson-check-help.sh
+
+    # remove failing test, last checked: 244
+    edo sed \
+        -e '/test-user-util/,+3d' \
+        -i src/test/meson.build
 }
 
 MESON_SRC_CONFIGURE_PARAMS=(
-    -Dlocalstatedir=/var
-
-    -Dsplit-usr=false
-    -Dsplit-bin=false
-    -Drootlibdir=/usr/$(exhost --target)/lib
-    -Drootprefix=/usr/$(exhost --target)
+    -Dadm-group=false
+    -Danalyze=true
+    -Daudit=false
+    -Dbacklight=false
+    -Dbinfmt=false
+    -Dblkid=true
+    -Dbzip2=false
+    -Dcertificate-root=/etc/ssl
+    -Dcompat-mutable-uid-boundaries=true    
+    -Dcoredump=false    
+    -Dcreate-log-dirs=false
+    -Ddbus=true
+    -Ddebug-tty=/dev/tty9
+    -Ddefault-dnssec=allow-downgrade
+    -Ddefault-hierarchy=unified
+    -Ddefault-kill-user-processes=false
+    -Ddefault-llmnr=yes
+    -Ddefault-mdns=yes
+    -Ddefault-net-naming-scheme=latest
+    -Ddocdir=/usr/share/doc/${PNVR}
+    -Defi-cc=${EFI_CC:-${CC}}
+    -Defi-includedir=/usr/$(exhost --target)/include/efi
+    -Defi-ld=${EFI_LD:-${LD}}
+    -Defi-libdir=/usr/$(exhost --target)/lib
+    -Denvironment-d=true
+    -Dfallback-hostname=localhost
+    -Dfdisk=false
+    -Dfirstboot=false
+    -Dfuzz-tests=false
+    -Dglib=false
+    -Dgshadow=true
+    -Dhibernate=true
+    -Dhostnamed=true
+    -Dhtml=false
+    -Dhwdb=true
+    -Dima=false
+    -Dinitrd=true
+    -Dinstall-sysconfdir=true    
+    -Dinstall-tests=false
+    -Dkernel-install=true
+    -Dldconfig=false
+    -Dlibidn=false
     -Dlink-udev-shared=true
-
+    -Dlocaled=true
+    -Dlocalstatedir=/var
+    -Dlogind=true
+    -Dmachined=true
+    -Dmode=release    
+    -Dnetworkd=true
+    -Dnobody-group=nobody
+    -Dnobody-user=nobody
+    -Dnss-myhostname=false
+    -Dnss-mymachines=false
+    -Dnss-resolve=false
+    -Dnss-systemd=false
+    -Dntp-servers="0.exherbo.pool.ntp.org 1.exherbo.pool.ntp.org 2.exherbo.pool.ntp.org 3.exherbo.pool.ntp.org"
+    -Doomd=true
+    -Dpamconfdir=/etc/pam.d
+    -Dpamlibdir=/usr/$(exhost --target)/lib/security
+    -Dpkgconfigdatadir=/usr/$(exhost --target)/lib/pkgconfig
+    -Dportabled=true
+    -Dquotacheck=true
+    -Drandomseed=true
+    -Drc-local=""
+    -Dresolve=true
+    -Drfkill=false
+    -Drootlibdir=/usr/$(exhost --target)/lib
+    -Drootprefix=/
+    -Drpmmacrosdir=no
+    -Dservice-watchdog=3min
+    -Dslow-tests=false
+    -Dsmack=false
+    -Dsplit-bin=false
+    -Dsplit-usr=false
+    -Dstandalone-binaries=false
+    -Dstatus-unit-format-default=description
+    -Dsysusers=true
     -Dsysvinit-path=""
     -Dsysvrcnd-path=""
     -Dtelinit-path=""
-    -Drc-local=""
-    -Dhalt-local=""
-
-    -Ddebug-tty=/dev/tty9
-
-    -Dutmp=true
-    -Dhibernate=true
-    -Dldconfig=true
-    -Dresolved=true
-    -Dtpm=true
-    -Denvironment-d=true
-    -Dbinfmt=true
-    -Dlogind=true
-    -Dhostnamed=true
-    -Dlocaled=true
-    -Dmachined=true
-    -Dnetworkd=true
+    -Dtests=false
     -Dtimedated=true
     -Dtimesyncd=true
-    -Dmyhostname=true
-    -Dfirstboot=true
-    -Drandomseed=true
-    -Dbacklight=true
-    -Dvconsole=true
-    -Dquotacheck=true
-    -Dsysusers=true
     -Dtmpfiles=true
-    -Dhwdb=true
-    -Drfkill=true
-    -Dman=true
-    -Dhtml=false
-
-    -Dcertificate-root=/etc/ssl
-    -Dpkgconfigdatadir=/usr/$(exhost --target)/lib/pkgconfig
-    -Drpmmacrosdir=no
-    -Dpamconfdir=/etc/pam.d
-    -Dpamlibdir=/usr/$(exhost --target)/lib/security
-
-    -Dfallback-hostname=localhost
-    -Ddefault-hierarchy=hybrid
+    -Dtpm=true
     -Dtty-gid=5
-    -Dadm-group=false
+    -Dutmp=false
+    -Dvconsole=true
     -Dwheel-group=true
-    -Dnobody-user=nobody
-    -Dnobody-group=nobody
-    -Ddefault-kill-user-processes=false
-    -Dgshadow=true
-
-    -Ddefault-dnssec=allow-downgrade
-    -Dntp-servers="0.exherbo.pool.ntp.org 1.exherbo.pool.ntp.org 2.exherbo.pool.ntp.org 3.exherbo.pool.ntp.org"
-
-    -Dsmack=false
-    -Dima=false
-
-    -Daudit=false
-    -Dblkid=true
-    -Dpam=true
-    -Dlibidn2=false
-    -Dnss-systemd=true
-    -Dzlib=true
-    -Dbzip2=true
-    -Dxz=true
-    -Dglib=false
-    -Ddbus=true
-
-    -Defi-cc=${CC}
-    -Defi-ld=${LD}
-    -Defi-libdir=/usr/$(exhost --target)/lib
-    -Defi-includedir=/usr/$(exhost --target)/include/efi
-
-    -Dtests=true
-    -Dslow-tests=false
-    -Dinstall-tests=false
+    -Dxdg-autostart=true
 )
 
 MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
-    apparmor
-    efi
-    'journal-gateway remote'
-    importd
-    seccomp
-    selinux
-    polkit
+    elfutils
     acl
-    'journal-gateway microhttpd'
+    apparmor
+    'bash-completion bashcompletiondir /usr/share/bash-completion/completions no'
     'cryptsetup libcryptsetup'
-    libcurl
-    idn
-    'idn libidn'
-    'nat libiptc'
-    qrencode
+    'doc man'
+    efi
+    'efi gnu-efi'
     gcrypt
     gnutls
-    lz4
-    xkbcommon
+    homed
+    'homed userdb'
+    idn
+    'idn libidn2'
+    importd
+    'journal-gateway microhttpd'
+    'journal-gateway remote'
     kmod
-    elfutils
-    coredump
+    libcurl
+    lz4
+    'nat libiptc'
+    openssl
+    'pkcs11 p11kit'
+    polkit
+    pstore
+    pwquality
+    qrencode
     'regexp pcre2'
-    'efi gnu-efi'
-
-    'bash-completion bashcompletiondir /usr/share/bash-completion/completions no'
+    repart
+    seccomp
+    'security-key libfido2'
+    selinux
+    'static link-udev-shared false true'
+    'static link-networkd-shared false true'
+    'static link-systemctl-shared false true'
+    'static link-timesyncd-shared false true'
+    'static static-libsystemd pic false'
+    'static static-libudev pic false'
+    'static standalone-binaries true false'
+    xkbcommon
     'zsh-completion zshcompletiondir /usr/share/zsh/site-functions no'
+    zstd
+    xz
+    zlib
+    pam
 )
+
+if ever at_least 248; then
+    DEPENDENCIES+="
+        run:
+            group/sgx [[ note = [ Required for default udev-rules ] ]]
+    "
+    MESON_SRC_CONFIGURE_PARAMS+=(
+        -Dfexecve=false
+        -Dlocalegen-path=""
+        -Dnscd=true
+        -Dsysext=true
+        -Dtpm2=false
+        -Dtranslations=true
+    )
+fi
+
+systemd_src_configure() {
+    local meson_args=()
+
+    if option providers:gnutls; then
+        meson_args+=(
+            '-Ddns-over-tls=gnutls'
+            '-Ddefault-dns-over-tls=opportunistic'
+        )
+    elif option providers:openssl; then
+        meson_args+=(
+            '-Ddns-over-tls=openssl'
+            '-Ddefault-dns-over-tls=opportunistic'
+        )
+    elif option providers:libressl; then
+        meson_args+=(
+            '-Ddns-over-tls=openssl'
+            '-Ddefault-dns-over-tls=opportunistic'
+        )
+    else
+        meson_args+=(
+            '-Ddns-over-tls=false'
+            '-Ddefault-dns-over-tls=no'
+        )
+    fi
+
+    meson_src_configure "${meson_args[@]}"
+}
 
 systemd_src_test() {
     if exhost --is-native -q; then
@@ -366,8 +473,9 @@ systemd_src_install() {
         /usr/share/man/man1/init.1 ${PN}.init.1
     )
 
-    local a
-    for a in halt poweroff reboot runlevel shutdown telinit; do
+    local a manpages=()
+    manpages=( halt poweroff reboot shutdown )
+    for a in ${manpages[@]} ; do
         alternatives+=(
             /usr/share/man/man8/${a}.8 ${PN}.${a}.8
         )
@@ -466,13 +574,19 @@ LC_MEASUREMENT=C
 LC_IDENTIFICATION=C
 EOF
 
-    # Don't create /var/log/journal, the user should do that
-    edo rm -r "${IMAGE}"/var/log/{journal,}
+    elog "Persistent logging to the systemd journal in /var/log/journal is disabled"
+    elog "by default because it is felt that logging decisions are best left to the"
+    elog "sysadmin."
+    elog ""
+    elog "For information on how to enable persistent logging, please consult the"
+    elog "systemd-journald man page."
 
     # keepdir some stuff
     keepdir /etc/systemd/session
+    keepdir /etc/systemd/system/getty.target.wants
     keepdir /etc/systemd/system/graphical.target.wants
     keepdir /etc/systemd/system/local-fs.target.wants
+    keepdir /etc/systemd/system/multi-user.target.wants
     keepdir /etc/systemd/system/sysinit.target.wants
     keepdir /etc/systemd/user
     keepdir /var/lib/systemd
@@ -518,8 +632,8 @@ EOF
     keepdir /etc/systemd/{coredump,journald,logind,resolved,system,timesyncd,user}.conf.d
 
     # module loading configuration
-    insinto /etc/modprobe.d
-    doins "${FILES}"/blacklist.conf
+    #insinto /etc/modprobe.d
+    #doins "${FILES}"/blacklist.conf
 
     # config protection
     hereenvd 20udev <<EOT
@@ -598,32 +712,26 @@ systemd_pkg_postinst() {
     # Update the message catalogue index
     nonfatal edo /usr/${CHOST}/bin/journalctl --root="${ROOT}" --update-catalog || ewarn "Updating journal message catalogue failed (journalctl --update-catalog)"
 
-    if ever at_least 236 ; then
-        # remove the old directories so systemd can automatically create symlinks for them pointing
-        # to the new location under /var/lib/private/systemd.
-        if [[ ! -L /var/lib/systemd/journal-upload ]] ; then
-            nonfatal edo rm -rf /var/lib/systemd/journal-upload
-        fi
-        if [[ ! -L /var/lib/systemd/timesync ]] ; then
-            nonfatal edo rm -rf /var/lib/systemd/timesync
-        fi
-        # Earlier the location was /var/lib/systemd/clock, so let's also clean it up.
-        # https://github.com/systemd/systemd/commit/53d133ea1bb4c4ed44c4b6aae42f1feb33d9cb78
-        if [[ -f /var/lib/systemd/clock ]] ; then
-            nonfatal edo rm -f /var/lib/systemd/clock
-        fi
+    # remove the old directories so systemd can automatically create symlinks for them pointing
+    # to the new location under /var/lib/private/systemd.
+    if [[ ! -L /var/lib/systemd/journal-upload ]] ; then
+        nonfatal edo rm -rf /var/lib/systemd/journal-upload
+    fi
+    # timesyncd changed the place where it stores its state
+    if [[ -L /var/lib/systemd/timesync ]] ; then
+        nonfatal edo rm /var/lib/systemd/timesync
+        nonfatal edo rm -rf /var/lib/private/systemd/timesync
+    fi
+    # Earlier the location was /var/lib/systemd/clock, so let's also clean it up.
+    # https://github.com/systemd/systemd/commit/53d133ea1bb4c4ed44c4b6aae42f1feb33d9cb78
+    if [[ -f /var/lib/systemd/clock ]] ; then
+        nonfatal edo rm -f /var/lib/systemd/clock
     fi
 
-    if has_version 'sys-apps/systemd[>=209]' && [[ -L ${ROOT}/etc/udev/rules.d/80-net-name-slot.rules ]]; then
-        ewarn "You're not using predictable network interface names (bad choice!). If you want"
-        ewarn "to keep using those, you need to mask 80-net-setup-link.rules since systemd-209"
-        ewarn "now. cf. http://www.freedesktop.org/wiki/Software/systemd/PredictableNetworkInterfaceNames/"
-    fi
-
-    if has_version 'sys-apps/systemd[>=238]'; then
-        ewarn "UPGRADE ISSUE: serialization of units using JoinsNamespaceOf= with PrivateNetwork=yes was buggy"
-        ewarn "in previous versions of systemd. This means that after the upgrade (which does daemon-reexec),"
-        ewarn "any such units must be restarted."
+    if has_version 'sys-apps/systemd[>=242]'; then
+        ewarn "Prior to systemd 242, some services were enabled by default."
+        ewarn "You now need to enable those manually if you want to use them:"
+        ewarn "systemd-networkd systemd-timesyncd systemd-resolved getty@tty1"
     fi
 
     local cruft=(

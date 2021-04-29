@@ -1,0 +1,49 @@
+# Copyright 2021 sigma0f@protonmail.com
+# Distributed under the terms of the GNU General Public License v2
+
+export_exlib_phases src_compile src_install
+
+SUMMARY="This software implements essential compilation tools and libraries for:
+A) managing program objects conforming to the ELF object format, and
+B) for managing DWARF debugging information in ELF objects.
+"
+HOMEPAGE="https://elftoolchain.sourceforge.net"
+DOWNLOADS="https://sourceforge.net/projects/elftoolchain/files/Sources/elftoolchain-0.7.1/${PNV}.tar.bz2"
+#https://mirrors.aliyun.com/macports/distfiles/elftoolchain/elftoolchain-0.7.1.tar.bz2
+
+LICENCES="BSD-2 BSD-3 BSD-4 ISC"
+SLOT="0"
+MYOPTIONS="libelf"
+
+# illegal argument to -j
+RESTRICT="test"
+
+DEPENDENCIES="
+    build:
+	sys-devel/bmake[>=20210206]
+    build+run:
+	libelf? (
+            !dev-libs/libelf [[
+                description = [ installs the same headers, but the libraries are ABI incompatible ]
+                resolution = uninstall-blocked-before
+            ]]
+            !dev-util/elfutils [[
+                description = [ installs the same headers, but the libraries are ABI incompatible ]
+                resolution = uninstall-blocked-before
+            ]] )
+"
+
+#WORK=${WORKBASE}/${PN}
+
+elftoolchain_src_compile() {
+    if option libelf; then
+       edo bmake -C common
+       edo bmake -C libelf
+    fi
+}
+
+elftoolchain_src_install() {
+    if option libelf; then
+       edo bmake -C libelf install DESTDIR="${IMAGE}"/usr/$(exhost --target)/elftoochain
+    fi
+}

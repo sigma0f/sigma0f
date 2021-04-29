@@ -1,0 +1,84 @@
+# Copyright 2009, 2010 Ingmar Vanhassel
+# Distributed under the terms of the GNU General Public License v2
+
+require python-build
+
+PLATFORMS="~amd64"
+
+DEPENDENCIES+="
+    build+run:
+        app-arch/xz
+"
+
+src_test() {
+    local DISABLE_TESTS
+
+    DISABLE_TESTS=(
+        # Has problems with path resolution
+        test_distutils
+
+        # Never-ending threads running under gdb
+        test_gdb
+
+        # Run forever sometimes (sandboxing issue?)
+        test_multiprocessing_fork
+        test_multiprocessing_forkserver
+        test_multiprocessing_spawn
+
+        # Seems to hang
+        test_socket
+
+        # Fail in CI environment
+        test_asyncore
+        test_posix
+
+        # Want access to DNS
+        test_robotparser
+        test_smtpnet
+        test_ssl
+        test_timeout
+        test_urllib
+        test_urllibnet
+        test_urllib2
+        test_urllib2_localnet
+        test_urllib2net
+
+        # Want to bind to 0.0.0.0/::
+        # TODO: check which of these tests actually fall in this category
+        test_asyncio
+        test_ctypes
+        test_fcntl
+        test_float
+        test_ftplib
+        test_httplib
+        test_normalization
+        test_os
+        test_pathlib
+        test_pydoc
+        test_pyexpat
+        test_site
+        test_sqlite
+    )
+
+    # for test_socketserver
+    esandbox allow_net "unix:${TEMP%/}"'/unix_socket.*'
+
+    # for test_sysconfig
+    esandbox allow_net "unix:${TEMP%/}"/'tmp*'
+
+    # for test_logging
+    esandbox allow_net "unix:${TEMP%/}"'/test_logging_*.sock'
+
+    # for test_asyncore
+    esandbox allow_net "unix:${PWD%/}"'/build/test_python_*/@test_*_tmp'
+
+    local COLUMNS=80 # for argparse test_help_with_metavar
+
+    python-build_src_test
+
+    esandbox disallow_net "unix:${PWD%/}"'/build/test_python_*/@test_*_tmp'
+    esandbox disallow_net "unix:${TEMP%/}"'/test_logging_*.sock'
+    esandbox disallow_net "unix:${TEMP%/}"/'tmp*'
+    esandbox disallow_net "unix:${TEMP%/}"'/unix_socket.*'
+}
+

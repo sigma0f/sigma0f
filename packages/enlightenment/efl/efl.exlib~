@@ -1,0 +1,118 @@
+require enlightenment-base
+
+export_exlib_phases pkg_setup
+
+MYOPTIONS="
+    audio
+    avahi
+    X
+    framebuffer
+    sdl
+    wayland
+    physics
+    opengl
+    gstreamer
+    pulseaudio
+    connman
+    harfbuzz
+    fribidi
+    fontconfig
+    libmount
+    pixman
+    ( providers:
+	gnutls
+	openssl
+	libressl
+    ) [[
+	number-selected = at-most-one
+	*description = [ Which SSL Crypto libray usesd in efl ]
+    ]]
+    ( providers: elogind systemd ) [[
+	*description = [ Session tracking provider ]
+	number-selected = at-most-one
+    ]]
+    ( providers: ijg-jpeg jpeg-turbo ) [[ number-selected = at-most-one ]]
+    "
+
+DEPENDENCIES+="
+    build:
+	gstreamer? ( media-libs/gstreamer[>=1.18.3] )
+    build+run:
+	sys-libs/libinput[>=1.17.0]
+	x11-libs/libxkbcommon[>=1.1.0]
+	avahi? ( net-dns/avahi[>=0.8.0] )
+	physics? ( sci-physics/bullet[>=2.89.0] )
+	harfbuzz? ( x11-libs/harfbuzz[>=2.8.0] )
+	fribidi? ( dev-libs/fribidi[>=1.0.10] )
+	fontconfig? ( media-libs/fontconfig[>=2.13.1] )
+	pixman? ( x11-libs/pixman[>=0.38.4] )
+	dev-lang/lua[>=5.3.5]
+	providers:elogind? ( sys-auth/elogind[>=247] )
+	providers:systemd? ( sys-apps/systemd[>=247] )
+	providers:ijg-jpeg? ( media-libs/jpeg:= )
+	providers:jpeg-turbo? ( media-libs/libjpeg-turbo )
+    run:
+	wayland? ( x11-dri/mesa[?X][>=20.3.4] )
+    suggestion:
+	enlightenment/enlightenment [[ description = [ Englightenment Desktop ] ]]
+	enlightenment/terminology [[ description = [ Englightenment Desktop terminal emulator ] ]]
+"
+
+efl_pkg_setup() {
+    if option !X ; then
+	append-cppflags -DEGL_NO_X11=1
+    fi
+}
+
+DEFAULT_SRC_PREPARE_PATCHES+=(
+    "${FILES}/patches-${PV}"
+)
+
+MESON_SRC_CONFIGURE_PARAMS+=(
+    -Deina-magic-debug=false
+    -Ddebug-threads=false
+    -Dbuild-examples=false
+    -Dbuild-tests=false
+    -Dvnc-server=false
+    -Dv4l2=false
+    -Dbindings=""
+    -Defl-one=false
+    -Dbuffer=true
+    -Delua=false
+    -Dlua-interpreter=lua
+    -Devas-loaders-disabler="['pdf', 'ps', 'raw', 'svg', 'rsvg', 'gif', 'jpeg', 'jp2k', 'json', 'avif', 'tiff', 'wbmp', 'webp']"
+    -Decore-imf-loaders-disabler="['xim']"
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES+=(
+    audio
+    avahi
+    sdl
+    'X x11'
+    'framebuffer fb'
+    'wayland wl'
+    'wayland drm'
+    physics
+    gstreamer
+    pulseaudio
+    'X xinput2'
+    'X xinput22'
+    harfbuzz
+    fribidi
+    fontconfig
+    pixman
+    libmount
+)
+
+MESON_SRC_CONFIGURE_OPTION_FEATURES+=(
+)
+
+MESON_SRC_CONFIGURE_OPTIONS+=(
+    'opengl -Dopengl=full -Dopengl=es-egl'
+    'providers:systemd -Dsystemd=true'
+    'providers:elogind -Dsystemd=true'    
+    'providers:gnutls -Dcrypto=gnutls'
+    'providers:openssl -Dcrypto=openssl'
+    'providers:libressl -Dcrypto=openssl'
+    'connman -Dnetwork-backend=connman -Dnetwork-backend=none'
+)

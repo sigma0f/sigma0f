@@ -1,0 +1,4 @@
+require enlightenment
+
+PLATFORMS="~amd64"
+

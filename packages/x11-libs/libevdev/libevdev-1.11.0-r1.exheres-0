@@ -1,0 +1,9 @@
+# Copyright 2013 Marc-Antoine Perennou <keruspe@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require libevdev
+
+DOWNLOADS="https://www.freedesktop.org/software/${PN}/${PNV}.tar.xz"
+
+PLATFORMS="~amd64"
+

@@ -1,0 +1,74 @@
+# Copyright 2012 Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ release=${PV} suffix=tar.xz ] meson
+
+SUMMARY="An OpenType text shaping engine"
+HOMEPAGE="https://www.freedesktop.org/wiki/Software/${PN}"
+
+LICENCES="MIT"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="
+    shared	
+    glib	
+    gobject-introspection
+    graphite [[ description = [ Build with Graphite2 font system support ] ]]
+    gtk-doc
+"
+
+DEPENDENCIES="
+    build:
+        virtual/pkg-config[>=0.20]
+        gobject-introspection? ( gnome-desktop/gobject-introspection:1[>=1.34.0] )
+        gtk-doc? ( dev-doc/gtk-doc[>=1.15] )
+    build+run:
+        glib? ( dev-libs/glib:2[>=2.19.1] )
+        dev-libs/icu:=
+        media-libs/fontconfig
+        media-libs/freetype:2[>=2.4.2]
+        x11-libs/cairo[>=1.8.0]
+        graphite? ( x11-libs/graphite2[>=1.2.0] )
+    test:
+        dev-lang/python:*
+"
+
+MESON_SRC_CONFIGURE_PARAMS=(
+    -Dbuildtype=release
+    -Dcairo=enabled
+    -Dfontconfig=enabled
+    -Dfreetype=enabled
+    -Dicu=enabled
+    -Dcoretext=disabled
+    -Ddirectwrite=disabled
+    -Dgdi=disabled
+
+    -Dexperimental_api=false
+    -Dicu_builtin=true
+)
+MESON_SRC_CONFIGURE_OPTION_FEATURES=(
+    'gobject-introspection introspection'
+    graphite
+    'gtk-doc docs'
+    glib
+    'glib gobject'
+)
+MESON_SRC_CONFIGURE_OPTIONS=(
+    'shared --default-library=shared --default-library=static'
+)
+
+MESON_SRC_CONFIGURE_TESTS=( '-Dtests=enabled -Dtests=disabled' )
+
+src_prepare() {
+    meson_src_prepare
+
+    # TODO: Fix this properly upstream
+    edo sed \
+        -e "s:'nm':'$(exhost --tool-prefix)nm':g" \
+        -e "s:'c++filt':'$(exhost --tool-prefix)c++filt':g" \
+        -i src/check-symbols.py
+    edo sed \
+        -e "s:'objdump':'$(exhost --tool-prefix)objdump':" \
+        -i src/check-static-inits.py
+}
+

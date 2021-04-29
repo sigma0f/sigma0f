@@ -1,0 +1,275 @@
+diff --git a/disk-utils/cfdisk.c b/disk-utils/cfdisk.c
+index 11f8b9a..eb7bd5d 100644
+--- a/disk-utils/cfdisk.c
++++ b/disk-utils/cfdisk.c
+@@ -1908,7 +1908,7 @@ static int ui_get_size(struct cfdisk *cf,	/* context */
+ 				insec = 1;
+ 				buf[len - 1] = '\0';
+ 			}
+-			rc = parse_size(buf, (uintmax_t *)&user, &pwr);	/* parse */
++			rc = parse_size_(buf, (uintmax_t *)&user, &pwr);	/* parse */
+ 		}
+ 
+ 		if (rc == 0) {
+diff --git a/disk-utils/fdisk.c b/disk-utils/fdisk.c
+index f802d44..f5bf2db 100644
+--- a/disk-utils/fdisk.c
++++ b/disk-utils/fdisk.c
+@@ -347,7 +347,7 @@ static int ask_offset(struct fdisk_context *cxt,
+ 			p++;
+ 		}
+ 
+-		rc = parse_size(p, &num, &pwr);
++		rc = parse_size_(p, &num, &pwr);
+ 		if (rc)
+ 			continue;
+ 		DBG(ASK, ul_debug("parsed size: %ju", num));
+diff --git a/disk-utils/partx.c b/disk-utils/partx.c
+index 07b3e28..a288648 100644
+--- a/disk-utils/partx.c
++++ b/disk-utils/partx.c
+@@ -857,7 +857,7 @@ int main(int argc, char **argv)
+ 			what = ACT_LIST;
+ 			break;
+ 		case 'n':
+-			if (parse_range(optarg, &lower, &upper, 0))
++			if (parse_range_(optarg, &lower, &upper, 0))
+ 				errx(EXIT_FAILURE, _("failed to parse --nr <M-N> range"));
+ 			break;
+ 		case 'o':
+diff --git a/include/fileutils.h b/include/fileutils.h
+index 479ad15..9b802a4 100644
+--- a/include/fileutils.h
++++ b/include/fileutils.h
+@@ -55,7 +55,7 @@ static inline int is_same_inode(const int fd, const struct stat *st)
+ extern int dup_fd_cloexec(int oldfd, int lowfd);
+ extern int get_fd_tabsize(void);
+ 
+-extern int mkdir_p(const char *path, mode_t mode);
++extern int mkdir_p_(const char *path, mode_t mode);
+ extern char *stripoff_last_component(char *path);
+ 
+ /* This is readdir()-like function, but skips "." and ".." directory entries */
+@@ -72,6 +72,6 @@ static inline struct dirent *xreaddir(DIR *dp)
+ 	return d;
+ }
+ 
+-extern void close_all_fds(const int exclude[], size_t exsz);
++extern void close_all_fds_(const int exclude[], size_t exsz);
+ 
+ #endif /* UTIL_LINUX_FILEUTILS */
+diff --git a/include/strutils.h b/include/strutils.h
+index 4b3182f..8fda458 100644
+--- a/include/strutils.h
++++ b/include/strutils.h
+@@ -12,7 +12,7 @@
+ /* initialize a custom exit code for all *_or_err functions */
+ extern void strutils_set_exitcode(int exit_code);
+ 
+-extern int parse_size(const char *str, uintmax_t *res, int *power);
++extern int parse_size_(const char *str, uintmax_t *res, int *power);
+ extern int strtosize(const char *str, uintmax_t *res);
+ extern uintmax_t strtosize_or_err(const char *str, const char *errmesg);
+ 
+@@ -196,7 +196,7 @@ extern int string_to_bitarray(const char *list, char *ary,
+ extern int string_to_bitmask(const char *list,
+ 			     unsigned long *mask,
+ 			     long (*name2flag)(const char *, size_t));
+-extern int parse_range(const char *str, int *lower, int *upper, int def);
++extern int parse_range_(const char *str, int *lower, int *upper, int def);
+ 
+ extern int streq_paths(const char *a, const char *b);
+ 
+@@ -322,7 +322,7 @@ static inline void strrem(char *s, int rem)
+ 	*p = '\0';
+ }
+ 
+-extern char *strnappend(const char *s, const char *suffix, size_t b);
++extern char *strnappend_(const char *s, const char *suffix, size_t b);
+ extern char *strappend(const char *s, const char *suffix);
+ extern char *strfappend(const char *s, const char *format, ...)
+ 		 __attribute__ ((__format__ (__printf__, 2, 0)));
+diff --git a/lib/fileutils.c b/lib/fileutils.c
+index 003f890..5c4d760 100644
+--- a/lib/fileutils.c
++++ b/lib/fileutils.c
+@@ -137,7 +137,7 @@ static inline int in_set(int x, const int set[], size_t setsz)
+ 	return 0;
+ }
+ 
+-void close_all_fds(const int exclude[], size_t exsz)
++void close_all_fds_(const int exclude[], size_t exsz)
+ {
+ 	struct dirent *d;
+ 	DIR *dir;
+@@ -193,14 +193,14 @@ int main(int argc, char *argv[])
+ 		ignore_result( dup(STDIN_FILENO) );
+ 		ignore_result( dup(STDIN_FILENO) );
+ 
+-		close_all_fds(wanted_fds, ARRAY_SIZE(wanted_fds));
++		close_all_fds_(wanted_fds, ARRAY_SIZE(wanted_fds));
+ 	}
+ 	return EXIT_SUCCESS;
+ }
+ #endif
+ 
+ 
+-int mkdir_p(const char *path, mode_t mode)
++int mkdir_p_(const char *path, mode_t mode)
+ {
+ 	char *p, *dir;
+ 	int rc = 0;
+diff --git a/lib/strutils.c b/lib/strutils.c
+index 304f314..f50f058 100644
+--- a/lib/strutils.c
++++ b/lib/strutils.c
+@@ -63,7 +63,7 @@ static int do_scale_by_power (uintmax_t *x, int base, int power)
+  * Note that the function does not accept numbers with '-' (negative sign)
+  * prefix.
+  */
+-int parse_size(const char *str, uintmax_t *res, int *power)
++int parse_size_(const char *str, uintmax_t *res, int *power)
+ {
+ 	const char *p;
+ 	char *end;
+@@ -219,7 +219,7 @@ err:
+ 
+ int strtosize(const char *str, uintmax_t *res)
+ {
+-	return parse_size(str, res, NULL);
++	return parse_size_(str, res, NULL);
+ }
+ 
+ int isdigit_strend(const char *str, const char **end)
+@@ -829,7 +829,7 @@ int string_to_bitmask(const char *list,
+  *
+  * Returns: 0 on success, <0 on error.
+  */
+-int parse_range(const char *str, int *lower, int *upper, int def)
++int parse_range_(const char *str, int *lower, int *upper, int def)
+ {
+ 	char *end = NULL;
+ 
+@@ -916,7 +916,7 @@ int streq_paths(const char *a, const char *b)
+ 	return 0;
+ }
+ 
+-char *strnappend(const char *s, const char *suffix, size_t b)
++char *strnappend_(const char *s, const char *suffix, size_t b)
+ {
+         size_t a;
+         char *r;
+@@ -948,7 +948,7 @@ char *strnappend(const char *s, const char *suffix, size_t b)
+ 
+ char *strappend(const char *s, const char *suffix)
+ {
+-        return strnappend(s, suffix, suffix ? strlen(suffix) : 0);
++        return strnappend_(s, suffix, suffix ? strlen(suffix) : 0);
+ }
+ 
+ char *strfappend(const char *s, const char *format, ...)
+@@ -964,7 +964,7 @@ char *strfappend(const char *s, const char *format, ...)
+ 	if (sz < 0)
+ 		return NULL;
+ 
+-	res = strnappend(s, val, sz);
++	res = strnappend_(s, val, sz);
+ 	free(val);
+ 	return res;
+ }
+diff --git a/libfdisk/src/gpt.c b/libfdisk/src/gpt.c
+index b8bdf6c..89c8ced 100644
+--- a/libfdisk/src/gpt.c
++++ b/libfdisk/src/gpt.c
+@@ -733,7 +733,7 @@ static int get_script_u64(struct fdisk_context *cxt, uint64_t *num, const char *
+ 	if (!str)
+ 		return 1;
+ 
+-	rc = parse_size(str, (uintmax_t *) num, &pwr);
++	rc = parse_size_(str, (uintmax_t *) num, &pwr);
+ 	if (rc < 0)
+ 		return rc;
+ 	if (pwr)
+diff --git a/libfdisk/src/script.c b/libfdisk/src/script.c
+index 6bbe817..0e58205 100644
+--- a/libfdisk/src/script.c
++++ b/libfdisk/src/script.c
+@@ -931,7 +931,7 @@ static int next_number(char **s, uint64_t *num, int *power)
+ 
+ 	tk = next_token(s);
+ 	if (tk)
+-		rc = parse_size(tk, (uintmax_t *) num, power);
++		rc = parse_size_(tk, (uintmax_t *) num, power);
+ 	return rc;
+ }
+ 
+@@ -1497,7 +1497,7 @@ int fdisk_apply_script_headers(struct fdisk_context *cxt, struct fdisk_script *d
+ 	if (str) {
+ 		uintmax_t sz;
+ 
+-		rc = parse_size(str, &sz, NULL);
++		rc = parse_size_(str, &sz, NULL);
+ 		if (rc == 0)
+ 			rc = fdisk_save_user_grain(cxt, sz);
+ 		if (rc)
+@@ -1520,7 +1520,7 @@ int fdisk_apply_script_headers(struct fdisk_context *cxt, struct fdisk_script *d
+ 	if (str) {
+ 		uintmax_t sz;
+ 
+-		rc = parse_size(str, &sz, NULL);
++		rc = parse_size_(str, &sz, NULL);
+ 		if (rc == 0)
+ 			rc = fdisk_gpt_set_npartitions(cxt, sz);
+ 	}
+diff --git a/libmount/src/context.c b/libmount/src/context.c
+index 064dcf7..d4ef32c 100644
+--- a/libmount/src/context.c
++++ b/libmount/src/context.c
+@@ -1956,7 +1956,7 @@ int mnt_context_prepare_target(struct libmnt_context *cxt)
+ 
+ 		/* supported only for root or non-suid mount(8) */
+ 		if (!mnt_context_is_restricted(cxt)) {
+-			rc = mkdir_p(tgt, mode);
++			rc = mkdir_p_(tgt, mode);
+ 			if (rc)
+ 				DBG(CXT, ul_debug("mkdir %s failed: %m", tgt));
+ 		} else
+diff --git a/libmount/src/utils.c b/libmount/src/utils.c
+index 40f479f..d70d558 100644
+--- a/libmount/src/utils.c
++++ b/libmount/src/utils.c
+@@ -1476,7 +1476,7 @@ static int test_mkdir(struct libmnt_test *ts, int argc, char *argv[])
+ {
+ 	int rc;
+ 
+-	rc = mkdir_p(argv[1], S_IRWXU |
++	rc = mkdir_p_(argv[1], S_IRWXU |
+ 			 S_IRGRP | S_IXGRP |
+ 			 S_IROTH | S_IXOTH);
+ 	if (rc)
+diff --git a/login-utils/login.c b/login-utils/login.c
+index 892e897..4d1b413 100644
+--- a/login-utils/login.c
++++ b/login-utils/login.c
+@@ -1289,7 +1289,7 @@ int main(int argc, char **argv)
+ 			*p++ = ' ';
+ 	}
+ 
+-	close_all_fds(wanted_fds, ARRAY_SIZE(wanted_fds));
++	close_all_fds_(wanted_fds, ARRAY_SIZE(wanted_fds));
+ 
+ 	setpgrp();	 /* set pgid to pid this means that setsid() will fail */
+ 	init_tty(&cxt);
+diff --git a/sys-utils/lscpu.c b/sys-utils/lscpu.c
+index 90c475a..ccf4df7 100644
+--- a/sys-utils/lscpu.c
++++ b/sys-utils/lscpu.c
+@@ -1394,7 +1394,7 @@ read_cache(struct lscpu_desc *desc, int idx)
+ 			/* cache size */
+ 			if (ul_path_readf_buffer(desc->syscpu, buf, sizeof(buf),
+ 					"cpu%d/cache/index%d/size", num, i) > 0)
+-				parse_size(buf, &ca->size, NULL);
++				parse_size_(buf, &ca->size, NULL);
+ 			else
+ 				ca->size = 0;
+ 		}

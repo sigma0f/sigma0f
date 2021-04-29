@@ -1,0 +1,108 @@
+diff --git a/Modules/_testcapimodule.c b/Modules/_testcapimodule.c
+index 5089f59..2931a91 100644
+--- a/Modules/_testcapimodule.c
++++ b/Modules/_testcapimodule.c
+@@ -4079,8 +4079,6 @@ temporary_c_thread(void *data)
+     PyGILState_Release(state);
+ 
+     PyThread_release_lock(test_c_thread->exit_event);
+-
+-    PyThread_exit_thread();
+ }
+ 
+ static PyObject *
+diff --git a/Modules/_threadmodule.c b/Modules/_threadmodule.c
+index fadf57a..642f887 100644
+--- a/Modules/_threadmodule.c
++++ b/Modules/_threadmodule.c
+@@ -1018,7 +1018,6 @@ t_bootstrap(void *boot_raw)
+     tstate->interp->num_threads--;
+     PyThreadState_Clear(tstate);
+     PyThreadState_DeleteCurrent();
+-    PyThread_exit_thread();
+ }
+ 
+ static PyObject *
+diff --git a/Programs/_testembed.c b/Programs/_testembed.c
+index 460d70c..d708d19 100644
+--- a/Programs/_testembed.c
++++ b/Programs/_testembed.c
+@@ -243,8 +243,6 @@ static void bpo20891_thread(void *lockp)
+     PyGILState_Release(state);
+ 
+     PyThread_release_lock(lock);
+-
+-    PyThread_exit_thread();
+ }
+ 
+ static int test_bpo20891(void)
+diff --git a/Python/thread_nt.h b/Python/thread_nt.h
+index 23d585c..18a259d 100644
+--- a/Python/thread_nt.h
++++ b/Python/thread_nt.h
+@@ -159,6 +159,13 @@ PyThread__init_thread(void)
+  * Thread support.
+  */
+ 
++static void
++_pythread_at_thread_exit()
++{
++    dprintf(("%lu: _pythread_at_thread_exit called\n",
++	     PyThread_get_thread_ident()));
++}
++
+ typedef struct {
+     void (*func)(void*);
+     void *arg;
+@@ -174,6 +181,7 @@ bootstrap(void *call)
+     void *arg = obj->arg;
+     HeapFree(GetProcessHeap(), 0, obj);
+     func(arg);
++    _pythread_at_thread_exit();
+     return 0;
+ }
+ 
+@@ -253,7 +261,7 @@ PyThread_get_thread_native_id(void)
+ void _Py_NO_RETURN
+ PyThread_exit_thread(void)
+ {
+-    dprintf(("%lu: PyThread_exit_thread called\n", PyThread_get_thread_ident()));
++    _pythread_at_thread_exit();
+     if (!initialized)
+         exit(0);
+     _endthreadex(0);
+diff --git a/Python/thread_pthread.h b/Python/thread_pthread.h
+index 78b99a7..59c7259 100644
+--- a/Python/thread_pthread.h
++++ b/Python/thread_pthread.h
+@@ -210,6 +210,13 @@ PyThread__init_thread(void)
+  * Thread support.
+  */
+ 
++static void
++_pythread_at_thread_exit()
++{
++    dprintf(("%lu: _pythread_at_thread_exit called\n",
++	     PyThread_get_thread_ident()));
++}
++
+ /* bpo-33015: pythread_callback struct and pythread_wrapper() cast
+    "void func(void *)" to "void* func(void *)": always return NULL.
+ 
+@@ -230,6 +237,7 @@ pythread_wrapper(void *arg)
+     PyMem_RawFree(arg);
+ 
+     func(func_arg);
++    _pythread_at_thread_exit();
+     return NULL;
+ }
+ 
+@@ -351,7 +359,7 @@ PyThread_get_thread_native_id(void)
+ void _Py_NO_RETURN
+ PyThread_exit_thread(void)
+ {
+-    dprintf(("PyThread_exit_thread called\n"));
++    _pythread_at_thread_exit();
+     if (!initialized)
+         exit(0);
+     pthread_exit(0);

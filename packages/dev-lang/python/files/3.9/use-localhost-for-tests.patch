@@ -1,0 +1,60 @@
+From d252f48d1ab46eeb1b0c455b13d6eeb93e2c470d Mon Sep 17 00:00:00 2001
+From: Paul Seidler <sepek@exherbo.org>
+Date: Sun, 27 Nov 2011 14:09:36 +0100
+Subject: [PATCH] use localhost for tests
+
+Upstream: no
+Updated for 3.9
+---
+diff --git a/Lib/test/test_httplib.py b/Lib/test/test_httplib.py
+index ed125893d6..f5758b5ead 100644
+--- a/Lib/test/test_httplib.py
++++ b/Lib/test/test_httplib.py
+@@ -1500,7 +1500,7 @@ class SourceAddressTest(TestCase):
+
+     def testHTTPConnectionSourceAddress(self):
+         self.conn = client.HTTPConnection(HOST, self.port,
+-                source_address=('', self.source_port))
++                source_address=('localhost', self.source_port))
+         self.conn.connect()
+         self.assertEqual(self.conn.sock.getsockname()[1], self.source_port)
+
+diff --git a/Lib/test/test_largefile.py b/Lib/test/test_largefile.py
+index a99b4ba89a..5402535282 100644
+--- a/Lib/test/test_largefile.py
++++ b/Lib/test/test_largefile.py
+@@ -221,7 +221,7 @@ class TestSocketSendfile(LargeFileTest, unittest.TestCase):
+     @skip_no_disk_space(TESTFN, size * 2.5)
+     def test_it(self):
+         port = socket_helper.find_unused_port()
+-        with socket.create_server(("", port)) as sock:
++        with socket.create_server(("localhost", port)) as sock:
+             self.tcp_server(sock)
+             with socket.create_connection(("127.0.0.1", port)) as client:
+                 with open(TESTFN, 'rb') as f:
+diff --git a/Lib/test/test_ssl.py b/Lib/test/test_ssl.py
+index 5d496c6687..532647614a 100644
+--- a/Lib/test/test_ssl.py
++++ b/Lib/test/test_ssl.py
+@@ -584,10 +584,10 @@ class BasicSocketTests(unittest.TestCase):
+             self.assertRaises(OSError, ss.recvfrom, 1)
+             self.assertRaises(OSError, ss.recvfrom_into, bytearray(b'x'), 1)
+             self.assertRaises(OSError, ss.send, b'x')
+-            self.assertRaises(OSError, ss.sendto, b'x', ('0.0.0.0', 0))
++            self.assertRaises(OSError, ss.sendto, b'x', ('localhost', 0))
+             self.assertRaises(NotImplementedError, ss.dup)
+             self.assertRaises(NotImplementedError, ss.sendmsg,
+-                              [b'x'], (), 0, ('0.0.0.0', 0))
++                              [b'x'], (), 0, ('localhost', 0))
+             self.assertRaises(NotImplementedError, ss.recvmsg, 100)
+             self.assertRaises(NotImplementedError, ss.recvmsg_into,
+                               [bytearray(100)])
+@@ -2625,7 +2625,7 @@ class AsyncoreEchoServer(threading.Thread):
+         def __init__(self, certfile):
+             self.certfile = certfile
+             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+-            self.port = socket_helper.bind_port(sock, '')
++            self.port = socket_helper.bind_port(sock)
+             asyncore.dispatcher.__init__(self, sock)
+             self.listen(5)
+

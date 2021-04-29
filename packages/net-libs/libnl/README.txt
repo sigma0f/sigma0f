@@ -1,0 +1,1 @@
+disable cli and doc

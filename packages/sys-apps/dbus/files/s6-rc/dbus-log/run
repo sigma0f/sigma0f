@@ -1,0 +1,4 @@
+#!/bin/execlineb -P
+exec -c
+s6-setuidgid log
+s6-log /var/log/s6/dbus

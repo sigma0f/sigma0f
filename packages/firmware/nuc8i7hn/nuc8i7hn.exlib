@@ -1,0 +1,33 @@
+# Copyright 2018 sigma0f <sigma0f@pm.me>
+# Distributed under the terms of the GNU General Public License v2
+
+export_exlib_phases pkg_setup src_install
+
+SUMMARY="firmware blobs for use with the Linux kernel"
+DESCRIPTION=""
+
+HOMEPAGE="https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
+
+SLOT="0"
+
+MYOPTIONS=""
+DEPENDENCIES="
+    run:	
+        !firmware/linux-firmware
+	!net-wireless/iwlwifi-8000-ucode
+	!net-wireless/b43-firmware
+	!firmware/intel-bluetooth
+	!firmware/intel-microcode
+	!firmware/radeon-ucode
+"
+
+nuc8i7hn_pkg_setup() {
+    edo mkdir "${WORK}"
+}
+
+nuc8i7hn_src_install() {
+    insinto /usr/$(exhost --target)/lib/firmware
+    doins ${FILES}/iwlwifi-8265-36.ucode
+    doins -r ${FILES}/amdgpu
+    doins -r ${FILES}/brcm
+}

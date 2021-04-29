@@ -1,8 +1,7 @@
 # Copyright 2008 Saleem Abdulrasool <compnerd@compnerd.org>
-# Copyright 2018 sigma0f <sigma0f@pme.me>
 # Distributed under the terms of the GNU General Purpose License v2
 
-require gnome.org [ suffix=tar.xz ]
+require gnome.org [ suffix=tar.xz ] test-dbus-daemon
 
 SUMMARY="General purpose utility library"
 DESCRIPTION="
@@ -14,18 +13,9 @@ with the exception of data structure manipulation functions, where, if you have
 two threads manipulating the same data structure, they must use a lock to
 synchronize their operation.
 "
-HOMEPAGE="http://www.gtk.org"
-DOWNLOADS+=" http://pkgconfig.freedesktop.org/releases/pkg-config-0.26.tar.gz"
+HOMEPAGE="https://www.gtk.org"
 
-MYOPTIONS=""
-
-if ever at_least 2.54.0; then
-    LICENCES="LGPL-2.1"
-else
-    LICENCES="LGPL-2"
-fi
-
-REMOTE_IDS="freecode:glib"
+LICENCES="LGPL-2.1"
 
 glib_src_test() {
     if ! exhost --is-native -q; then
@@ -55,12 +45,6 @@ glib_src_test() {
 
     export GIO_USE_FILE_MONITOR=inotify
 
-    esandbox allow_net 'unix-abstract:/tmp/dbus-*'
-
-    echo "Launching DBus session bus..."
-    eval "$(dbus-launch --sh-syntax)"
-    [[ -z ${DBUS_SESSION_BUS_PID} ]] && die "Launching DBus session bus failed"
-
     esandbox allow_net --connect 'unix:/tmp/gdbus,unix,test.*/bus'
     esandbox allow_net 'unix:/tmp/gdbus,unix,test.*/bus'
     esandbox allow_net --connect 'unix:/tmp/g-dbus-tests-pid-*'
@@ -69,11 +53,12 @@ glib_src_test() {
     esandbox allow_net 'unix-abstract:/tmp/gdbus-test-/dbus-*'
     esandbox allow_net 'unix-abstract:/tmp/test-dbus-peer/dbus-*'
     esandbox allow_net --connect "inet:127.0.0.1@1024-65535"
+    esandbox allow_net "unix:${TEMP}/gdbus-*/dbus-*"
+    esandbox allow_net "unix:${TEMP}/gdbus-test-*/gdbus-peer-socket"
+    esandbox allow_net --connect "unix:/run/dbus/system_bus_socket"
+    esandbox allow_net "unix-abstract:${TEMP}/gdbus-*/dbus-*"
 
-    if ! nonfatal emake check ; then
-        edo kill ${DBUS_SESSION_BUS_PID}
-        die "emake check failed"
-    fi
+    test-dbus-daemon_run-tests meson_src_test
 
     esandbox disallow_net --connect 'unix:/tmp/gdbus,unix,test.*/bus'
     esandbox disallow_net 'unix:/tmp/gdbus,unix,test.*/bus'
@@ -81,11 +66,12 @@ glib_src_test() {
     esandbox disallow_net 'unix:/tmp/g-dbus-tests-pid-*'
     esandbox disallow_net --connect 'unix:/tmp/gdbus-test-does-not-exist-pid'
     esandbox disallow_net 'unix-abstract:/tmp/gdbus-test-/dbus-*'
-    esandbox disallow_net 'unix-abstract:/tmp/dbus-*'
     esandbox disallow_net 'unix-abstract:/tmp/test-dbus-peer/dbus-*'
     esandbox disallow_net --connect "inet:127.0.0.1@1024-65535"
-
-    edo kill ${DBUS_SESSION_BUS_PID}
+    esandbox disallow_net "unix:${TEMP}/gdbus-*/dbus-*"
+    esandbox disallow_net "unix:${TEMP}/gdbus-test-*/gdbus-peer-socket"
+    esandbox disallow_net --connect "unix:/run/dbus/system_bus_socket"
+    esandbox disallow_net "unix-abstract:${TEMP}/gdbus-*/dbus-*"
 }
 
 export_exlib_phases src_test

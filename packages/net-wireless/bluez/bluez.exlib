@@ -1,0 +1,146 @@
+# Copyright 2008,2013 Saleem Abdulrasool <compnerd@compnerd.org>
+# Copyright 2008 Bernd Steinhauser <berniyh@exherbo.org>
+# Copyright 2010 Wulf C. Krueger <philantrop@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require systemd-service udev-rules zsh-completion
+
+export_exlib_phases src_install pkg_postinst pkg_postrm
+
+SUMMARY="Official Linux Bluetooth protocol stack"
+DESCRIPTION="
+BlueZ provides support for the core Bluetooth layers and protocols. It is flexible,
+efficient and uses a modular implementation. It has many interesting features:
+* Complete modular implementation
+* Symmetric multi processing safe
+* Multithreaded data processing
+* Support for multiple Bluetooth devices
+* Real hardware abstraction
+* Standard socket interface to all layers
+* Device and service level security support
+"
+HOMEPAGE="https://www.${PN}.org"
+DOWNLOADS="mirror://kernel/linux/bluetooth/${PNV}.tar.xz"
+
+LICENCES="GPL-2 LGPL-2.1"
+SLOT="0"
+MYOPTIONS="
+    testing [[ description = [ testing tools ] ]]
+    doc
+    logger
+    midi
+    cups [[
+        description = [ Include the CUPS driver for Bluetooth printers ]
+        note = [ This option has not been tested ]
+    ]]
+    deprecated [[ description = [ Build deprecated tools (hciattach, hcitool, ...) ] ]]
+    mesh [[ description = [ Bluetooth Low Energy (LE) Mesh profile support ] ]]
+    nfc [[ description = [ Enable NFC pairing ] ]]
+    obex [[ description = [ Include the OBEX profile (calendaring) ] ]]
+    systemd
+    ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
+"
+
+DEPENDENCIES="
+    build:
+        virtual/pkg-config[>=0.20]
+    build+run:
+        dev-libs/glib:2[>=2.28]
+        sys-apps/dbus[>=1.6]
+        sys-libs/readline:=
+        midi? ( sys-sound/alsa-lib )
+        mesh? (
+            dev-libs/json-c
+        )
+        obex? ( office-libs/libical:= )
+        providers:eudev? ( sys-apps/eudev )
+        providers:systemd? ( sys-apps/systemd )
+    run:
+        cups? ( net-print/cups )
+        nfc? ( net/neard )
+"
+
+# TODO: Tests?
+# Many of these tests are meant to be installed and used by developers.
+# Some might be suitable for src_test but there is no check/test target.
+#    test:
+#        gnome-bindings/pygobject
+#        dev-python/dbus-python
+
+DEFAULT_SRC_CONFIGURE_PARAMS=(
+    --localstatedir=/var
+    --enable-pie
+    --enable-threads
+    --enable-a2dp
+    --enable-avrcp
+    --enable-client
+    --enable-datafiles
+    --enable-debug
+    --enable-experimental
+    --enable-health
+    --enable-hid
+    --enable-hog
+    --enable-monitor
+    --enable-network
+    --enable-optimization
+    --enable-sap
+    --enable-sixaxis
+    --enable-threads
+    --enable-udev
+    --disable-library
+    --disable-android
+    --disable-sixaxis
+    --disable-btpclient
+    --with-systemdsystemunitdir=${SYSTEMDSYSTEMUNITDIR}
+    --with-systemduserunitdir=${SYSTEMDUSERUNITDIR}
+    --with-udevdir=${UDEVDIR}
+)
+
+DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
+    midi
+    cups
+    deprecated
+    mesh
+    nfc
+    obex
+    systemd
+    logger
+    'doc manpages'
+    testing
+)
+
+DEFAULT_SRC_CONFIGURE_OPTIONS=(
+    "zsh-completion --with-zsh-completion-dir=${ZSHCOMPLETIONDIR} --with-zsh-completion-dir=no"
+)
+
+bluez_src_install() {
+    default
+
+    insinto /etc/bluetooth
+    doins profiles/input/input.conf
+    doins profiles/network/network.conf
+
+    doins src/main.conf
+    if option mesh; then
+       dodoc tools/mesh/*.json
+    fi
+
+    local host=$(exhost --target)
+    if option deprecated; then
+       exeinto /usr/${host}/bin
+       doexe tools/rfcomm
+       doexe tools/btmgmt
+       doexe tools/gatttool
+    fi
+    keepdir /var/lib/bluetooth
+}
+
+bluez_pkg_postinst() {
+    default
+    nonfatal edo udevadm trigger --subsystem-match=bluetooth --action=change
+}
+
+bluez_pkg_postrm() {
+    default
+    nonfatal edo udevadm trigger --subsystem-match=bluetooth --action=change
+}

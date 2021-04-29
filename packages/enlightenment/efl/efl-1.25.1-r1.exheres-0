@@ -1,0 +1,4 @@
+require efl
+
+PLATFORMS="~amd64"
+

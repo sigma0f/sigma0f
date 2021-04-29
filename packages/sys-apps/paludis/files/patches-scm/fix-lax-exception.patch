@@ -1,0 +1,267 @@
+diff --git a/paludis/buffer_output_manager.cc b/paludis/buffer_output_manager.cc
+index 157cd41df..348095ec3 100644
+--- a/paludis/buffer_output_manager.cc
++++ b/paludis/buffer_output_manager.cc
+@@ -49,7 +49,7 @@ BufferOutputManager::BufferOutputManager(
+ {
+ }
+ 
+-BufferOutputManager::~BufferOutputManager()
++BufferOutputManager::~BufferOutputManager() noexcept
+ {
+     flush();
+ }
+diff --git a/paludis/buffer_output_manager.hh b/paludis/buffer_output_manager.hh
+index e255f6bd1..df9b5a9a1 100644
+--- a/paludis/buffer_output_manager.hh
++++ b/paludis/buffer_output_manager.hh
+@@ -39,7 +39,7 @@ namespace paludis
+             BufferOutputManager(
+                     const std::shared_ptr<OutputManager> &
+                     );
+-            ~BufferOutputManager();
++            ~BufferOutputManager() noexcept;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+diff --git a/paludis/command_output_manager.cc b/paludis/command_output_manager.cc
+index 95a53707f..6d2ba7ef4 100644
+--- a/paludis/command_output_manager.cc
++++ b/paludis/command_output_manager.cc
+@@ -114,7 +114,7 @@ CommandOutputManager::CommandOutputManager(const std::string & s, const std::str
+     _imp->stderr_stream.reset(new SafeOFStream(_imp->stderr_pipe->write_fd(), false));
+ }
+ 
+-CommandOutputManager::~CommandOutputManager() noexcept(false)
++CommandOutputManager::~CommandOutputManager() noexcept
+ {
+     nothing_more_to_come();
+ 
+diff --git a/paludis/command_output_manager.hh b/paludis/command_output_manager.hh
+index 27699c2bd..95276002f 100644
+--- a/paludis/command_output_manager.hh
++++ b/paludis/command_output_manager.hh
+@@ -53,7 +53,7 @@ namespace paludis
+                     const std::string & succeeded_command,
+                     const std::string & nothing_more_to_come_command
+                     );
+-            ~CommandOutputManager() noexcept(false);
++            ~CommandOutputManager() noexcept;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+diff --git a/paludis/file_output_manager.cc b/paludis/file_output_manager.cc
+index 5e4bec346..14dd5b3b3 100644
+--- a/paludis/file_output_manager.cc
++++ b/paludis/file_output_manager.cc
+@@ -71,7 +71,7 @@ FileOutputManager::FileOutputManager(const FSPath & o, const bool k, const bool
+ {
+ }
+ 
+-FileOutputManager::~FileOutputManager()
++FileOutputManager::~FileOutputManager() noexcept
+ {
+     nothing_more_to_come();
+ 
+diff --git a/paludis/file_output_manager.hh b/paludis/file_output_manager.hh
+index f87510ae5..e08d1a493 100644
+--- a/paludis/file_output_manager.hh
++++ b/paludis/file_output_manager.hh
+@@ -44,7 +44,7 @@ namespace paludis
+                     const bool keep_on_empty,
+                     const std::shared_ptr<OutputManager> & summary_output_manager,
+                     const std::string & summary_output_message);
+-            ~FileOutputManager();
++            ~FileOutputManager() noexcept;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+diff --git a/paludis/format_messages_output_manager.cc b/paludis/format_messages_output_manager.cc
+index 9629bcde9..889d64ad5 100644
+--- a/paludis/format_messages_output_manager.cc
++++ b/paludis/format_messages_output_manager.cc
+@@ -92,7 +92,7 @@ FormatMessagesOutputManager::FormatMessagesOutputManager(
+ {
+ }
+ 
+-FormatMessagesOutputManager::~FormatMessagesOutputManager() = default;
++//FormatMessagesOutputManager::~FormatMessagesOutputManager() noexcept = default;
+ 
+ std::ostream &
+ FormatMessagesOutputManager::stdout_stream()
+diff --git a/paludis/format_messages_output_manager.hh b/paludis/format_messages_output_manager.hh
+index 95203c02e..3f1631b2c 100644
+--- a/paludis/format_messages_output_manager.hh
++++ b/paludis/format_messages_output_manager.hh
+@@ -60,7 +60,7 @@ namespace paludis
+                     const std::string & format_status,
+                     const FormatMessagesOutputManagerFormatFunction &);
+ 
+-            ~FormatMessagesOutputManager();
++            virtual ~FormatMessagesOutputManager() noexcept = default;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+diff --git a/paludis/forward_at_finish_output_manager.cc b/paludis/forward_at_finish_output_manager.cc
+index 49fd3ed95..63996e0cd 100644
+--- a/paludis/forward_at_finish_output_manager.cc
++++ b/paludis/forward_at_finish_output_manager.cc
+@@ -64,7 +64,7 @@ ForwardAtFinishOutputManager::ForwardAtFinishOutputManager(
+ {
+ }
+ 
+-ForwardAtFinishOutputManager::~ForwardAtFinishOutputManager()
++ForwardAtFinishOutputManager::~ForwardAtFinishOutputManager() noexcept
+ {
+     if ((_imp->if_success && _imp->success) || (_imp->if_failure && ! _imp->success))
+     {
+diff --git a/paludis/forward_at_finish_output_manager.hh b/paludis/forward_at_finish_output_manager.hh
+index fc6c6cd6f..62b19b7a0 100644
+--- a/paludis/forward_at_finish_output_manager.hh
++++ b/paludis/forward_at_finish_output_manager.hh
+@@ -41,7 +41,7 @@ namespace paludis
+                     const bool if_success,
+                     const bool if_failure,
+                     const std::shared_ptr<OutputManager> & child);
+-            ~ForwardAtFinishOutputManager();
++            ~ForwardAtFinishOutputManager() noexcept;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+diff --git a/paludis/ipc_output_manager.cc b/paludis/ipc_output_manager.cc
+index 5ed2f9221..ad146e2f2 100644
+--- a/paludis/ipc_output_manager.cc
++++ b/paludis/ipc_output_manager.cc
+@@ -125,7 +125,7 @@ IPCOutputManager::IPCOutputManager(const int r, const int w, const CreateOutputM
+         << "Constructed";
+ }
+ 
+-IPCOutputManager::~IPCOutputManager() noexcept(false)
++IPCOutputManager::~IPCOutputManager() noexcept
+ {
+     *_imp->pipe_command_write_stream << "FINISHED 1" << '\0' << std::flush;
+ 
+@@ -491,7 +491,7 @@ OutputManagerFromIPC::OutputManagerFromIPC(const Environment * const e,
+ {
+ }
+ 
+-OutputManagerFromIPC::~OutputManagerFromIPC() noexcept(false)
++OutputManagerFromIPC::~OutputManagerFromIPC() noexcept
+ {
+ }
+ 
+diff --git a/paludis/ipc_output_manager.hh b/paludis/ipc_output_manager.hh
+index 3ddac98fe..b4748742b 100644
+--- a/paludis/ipc_output_manager.hh
++++ b/paludis/ipc_output_manager.hh
+@@ -45,7 +45,7 @@ namespace paludis
+                     const int pipe_read_fd,
+                     const int pipe_write_fd,
+                     const CreateOutputManagerInfo &);
+-            ~IPCOutputManager() noexcept(false);
++            ~IPCOutputManager() noexcept;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+@@ -104,7 +104,7 @@ namespace paludis
+                     const ClientOutputFeatures &
+                     );
+ 
+-            ~OutputManagerFromIPC() noexcept(false);
++            ~OutputManagerFromIPC() noexcept;
+ 
+             const std::shared_ptr<OutputManager> operator() (const Action &);
+ 
+diff --git a/paludis/output_manager.cc b/paludis/output_manager.cc
+index 40f391890..fbde6fc55 100644
+--- a/paludis/output_manager.cc
++++ b/paludis/output_manager.cc
+@@ -28,9 +28,7 @@ using namespace paludis;
+ 
+ #include <paludis/output_manager-se.cc>
+ 
+-OutputManager::~OutputManager() noexcept(false)
+-{
+-}
++//OutputManager::~OutputManager() noexcept(false) {}
+ 
+ namespace paludis
+ {
+diff --git a/paludis/output_manager.hh b/paludis/output_manager.hh
+index e0e9e7e7b..b24dfc657 100644
+--- a/paludis/output_manager.hh
++++ b/paludis/output_manager.hh
+@@ -30,7 +30,7 @@ namespace paludis
+     {
+         public:
+             OutputManager() = default;
+-            virtual ~OutputManager() noexcept(false) = 0;
++            virtual ~OutputManager() noexcept = default;
+ 
+             OutputManager(const OutputManager &) = delete;
+             OutputManager & operator= (const OutputManager &) = delete;
+diff --git a/paludis/standard_output_manager.cc b/paludis/standard_output_manager.cc
+index 32f60b928..537b63a84 100644
+--- a/paludis/standard_output_manager.cc
++++ b/paludis/standard_output_manager.cc
+@@ -27,7 +27,7 @@ StandardOutputManager::StandardOutputManager()
+ {
+ }
+ 
+-StandardOutputManager::~StandardOutputManager() = default;
++//StandardOutputManager::~StandardOutputManager() = default;
+ 
+ std::ostream &
+ StandardOutputManager::stdout_stream()
+diff --git a/paludis/standard_output_manager.hh b/paludis/standard_output_manager.hh
+index ebce384c3..e261f8f47 100644
+--- a/paludis/standard_output_manager.hh
++++ b/paludis/standard_output_manager.hh
+@@ -34,7 +34,7 @@ namespace paludis
+     {
+         public:
+             StandardOutputManager();
+-            ~StandardOutputManager();
++            virtual ~StandardOutputManager() noexcept = default;
+ 
+             virtual std::ostream & stdout_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+             virtual std::ostream & stderr_stream() PALUDIS_ATTRIBUTE((warn_unused_result));
+diff --git a/paludis/util/map.hh b/paludis/util/map.hh
+index d877e8280..b2541e5e9 100644
+--- a/paludis/util/map.hh
++++ b/paludis/util/map.hh
+@@ -71,7 +71,7 @@ namespace paludis
+ 
+             typedef std::pair<const K_, V_> value_type;
+             typedef std::pair<const K_, V_> & reference;
+-            typedef const reference & const_reference;
++            typedef reference & const_reference;
+ 
+             ///\}
+ 
+diff --git a/paludis/util/safe_ofstream.cc b/paludis/util/safe_ofstream.cc
+index 221d3dbf8..8b34c7fb8 100644
+--- a/paludis/util/safe_ofstream.cc
++++ b/paludis/util/safe_ofstream.cc
+@@ -136,7 +136,7 @@ SafeOFStream::SafeOFStream(const FSPath & p, const int open_flags, const bool b)
+ {
+ }
+ 
+-SafeOFStream::~SafeOFStream() noexcept(false)
++SafeOFStream::~SafeOFStream()
+ {
+     buf.write_buffered();
+ 
+diff --git a/paludis/util/safe_ofstream.hh b/paludis/util/safe_ofstream.hh
+index a0ddce3ac..e79d87a9a 100644
+--- a/paludis/util/safe_ofstream.hh
++++ b/paludis/util/safe_ofstream.hh
+@@ -118,7 +118,7 @@ namespace paludis
+ 
+             SafeOFStream(const int fd, const bool buffer);
+             SafeOFStream(const FSPath &, const int open_flags, const bool buffer);
+-            ~SafeOFStream() noexcept(false);
++            ~SafeOFStream() noexcept;
+ 
+             ///\}
+     };

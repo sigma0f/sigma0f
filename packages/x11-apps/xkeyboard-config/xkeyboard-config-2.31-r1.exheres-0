@@ -1,0 +1,8 @@
+# Copyright 2008 Alexander Færøy <ahf@exherbo.org>
+# Copyright 2011 Bernd Steinhauser <berniyh@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require xkeyboard-config
+
+PLATFORMS="~amd64 ~armv8 ~x86"
+

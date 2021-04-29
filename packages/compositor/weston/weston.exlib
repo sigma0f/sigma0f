@@ -1,26 +1,29 @@
 # Copyright 2012 Arne Janbu
 # Distributed under the terms of the GNU General Public License v2
 
-require systemd-service
+require alternatives
+require meson
 
 myexparam wayland_dep
 myexparam wayland_protocols_dep
 
-export_exlib_phases src_compile src_install
+export_exlib_phases src_install
 
 SUMMARY="Weston is the reference implementation of a Wayland-based compositor"
-HOMEPAGE="http://wayland.freedesktop.org/"
+HOMEPAGE="https://wayland.freedesktop.org/"
 
 LICENCES="MIT"
 MYOPTIONS="
-    doc    [[ description = [ Build developer documentation ] ]]
+    kiosk-shell
+    webp   [[ description = [ webp loading support ] ]]
+    lcms2  [[ description = [ Compositor clolor management: lcms2 ] ]]
     colord [[ description = [ dynamic color profiling support through colord ] ]]
-    intel  [[ description = [ Build simple Intel dmabuf client ] ]]
+    pipewire [[ description = [ Screencasting support via PipeWire ] ]]
     rdp    [[ description = [ RDP compositor and screen sharing ] ]]
     systemd
     X      [[ description = [ X11 backend and XWayland ] ]]
 
-    ( providers: ijg-jpeg jpeg-turbo ) [[ number-selected = exactly-one ]]
+    ( providers: ijg-jpeg jpeg-turbo ) [[ number-selected = at-most-one ]]
     ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
 "
 
@@ -29,114 +32,160 @@ RESTRICT="test"
 
 DEPENDENCIES="
     build:
-        virtual/pkg-config
-        doc? ( app-doc/doxygen )
-        X? (
-            x11-proto/xcb-proto
-            x11-proto/xorgproto
-        )
-    build+run:
-        dev-libs/glib:2[>=2.36]
-        media-libs/libpng:=
-        providers:ijg-jpeg? ( media-libs/jpeg:= )
-        providers:jpeg-turbo? ( media-libs/libjpeg-turbo )
-        sys-apps/dbus
-        sys-libs/libinput[>=0.8.0]
-        sys-libs/pam
-        sys-libs/wayland$(exparam wayland_dep)
-        sys-libs/wayland-protocols$(exparam wayland_protocols_dep)
-        x11-dri/libdrm[>=2.4.30]
-        x11-dri/mesa[>=10.2][wayland][?X]
-        x11-libs/cairo[>=1.10.0]
-        x11-libs/gdk-pixbuf:2.0
-        x11-libs/pango
-        x11-libs/pixman:1[>=0.25.2]
-	x11-libs/libxkbcommon[>=0.8.0] [[ note = [ XKBCOMMON_COMPOSE ] ]]
-        colord? ( sys-apps/colord[>=0.1.27] )
-        intel? ( x11-dri/libdrm[video_drivers:intel] )
-        rdp? ( net-remote/FreeRDP[>=1.1.0] )
-        systemd? ( sys-apps/systemd[>=198] )
-        X? (
-            x11-libs/libX11
-            x11-libs/libXcursor
-            x11-libs/libxcb[>=1.9]
-        )
-        providers:eudev? ( sys-apps/eudev )
-        providers:systemd? ( sys-apps/systemd )
-        !compositor/weston:0 [[
-            description = [ Pre parallel-installable Weston ]
-            resolution = uninstall-blocked-after
-        ]]
-    run:
+	virtual/pkg-config
 	X? (
-	    x11-apps/xkeyboard-config [[ note = [ for XKB database ] ]]
-	    x11-server/xorg-server[xwayland] 
-	   )
+	    x11-proto/xcb-proto
+	    x11-proto/xorgproto
+	)
+    build+run:
+	dev-libs/glib:2[>=2.36]
+	lcms2? (
+	      media-libs/lcms2
+	)
+	webp? (
+	      media-libs/libwebp
+	)
+	media-libs/libpng
+	providers:ijg-jpeg? ( media-libs/jpeg:= )
+	providers:jpeg-turbo? ( media-libs/libjpeg-turbo )
+	sys-apps/dbus
+	sys-libs/libinput[>=0.8.0]
+	sys-libs/pam
+	sys-libs/wayland$(exparam wayland_dep)
+	sys-libs/wayland-protocols$(exparam wayland_protocols_dep)
+	x11-libs/cairo[>=1.10.0]
+	x11-libs/gdk-pixbuf:2.0
+	x11-libs/libevdev
+	x11-libs/libxkbcommon[>=0.5.0] [[ note = [ XKBCOMMON_COMPOSE ] ]]
+	x11-dri/mesa[>=17.1][wayland][?X] [[ note = [ gbm modifiers ] ]]
+	x11-libs/pango
+	x11-libs/pixman:1[>=0.25.2]
+	colord? ( sys-apps/colord[>=0.1.27] )
+	pipewire? ( media/pipewire[>=0.2&<0.3] )
+	rdp? ( net-remote/FreeRDP[>=2.0.0] )
+	systemd? (
+	    sys-apps/dbus[>=1.6]
+	    sys-apps/systemd[>=198]
+	)
+	X? (
+	    x11-libs/libX11
+	    x11-libs/libXcursor
+	    x11-libs/libxcb[>=1.9]
+	)
+	providers:eudev? ( sys-apps/eudev )
+	providers:systemd? ( sys-apps/systemd )
+	!compositor/weston:0 [[
+	    description = [ Pre parallel-installable Weston ]
+	    resolution = uninstall-blocked-after
+	]]
+    run:
+	x11-apps/xkeyboard-config [[ note = [ for XKB database ] ]]
+	X? ( x11-server/xorg-server[xwayland] )
 "
 
-BUGS_TO="sardemff7@exherbo.org devel@arnej.de"
+if ever at_least 9.0.0; then
+    MYOPTIONS+="
+	kiosk-shell [[ description = [ Simple fullscreen shell for destkop apps ] ]]
+    "
 
-DEFAULT_SRC_CONFIGURE_PARAMS=(
-    --enable-dbus
-    --with-cairo=image
+    DEPENDENCIES+="
+	build+run:
+	    x11-dri/libdrm[>=2.4.86]
+    "
 
-    --disable-junit-xml
-    --disable-lcms
+    MESON_SRC_CONFIGURE_OPTION_SWITCHES+=(
+	'kiosk-shell shell-kiosk'
+    )
+else
+    DEPENDENCIES+="
+	build+run:
+	    x11-dri/libdrm[>=2.4.83] [[ note = [ DRM_COMPOSITOR_FORMATS_BLOB ] ]]
+    "
 
-    --disable-x11-compositor
-    --disable-wayland-compositor
-    --disable-headless-compositor
-    --disable-fbdev-compositor
+    MESON_SRC_CONFIGURE_PARAMS+=(
+	# Will go in a future release, use dmabuf-egl
+	'-Dsimple-dmabuf-drm=[]'
+    )
+fi
 
-    --disable-vaapi-recorder
-    --disable-ivi-shell
-    --disable-wcap-tools
-    --disable-fullscreen-shell
+MESON_SRC_CONFIGURE_PARAMS+=(
+    --libexecdir /usr/$(exhost --target)/libexec/weston-${SLOT}
+    -Dbackend-drm=true
+    -Dbackend-fbdev=false
+    -Dbackend-headless=false
+    -Dbackend-wayland=false
+    -Dbackend-rdp=false
+    -Dbackend-x11=false
+    -Dshell-ivi=false
+    -Dshell-fullscreen=false
+    # Needs breathe (besides Sphinx + doxygen), which is unwritten
+    -Ddoc=false
+    -Dtest-gl-render=false
+    -Dtest-junit-xml=false
+    -Dwcap-decode=false
+    -Dresize-pool=false
+    '-Dsimple-clients=[]'
+    -Ddemo-clients=false
+    '-Dtools='terminal''
+    -Dscreenshare=false
+    -Drenderer-gl=true
+    -Ddemo-clients=false
 
-    --disable-simple-clients
-    --disable-simple-egl-clients
-    --disable-simple-dmabuf-drm-client
-    --disable-simple-dmabuf-v4l-client
+    -Dtest-junit-xml=false
+    -Dbackend-drm-screencast-vaapi=false
 
-    --disable-demo-clients-install
+    -Dremoting=false
 )
 
-DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
-    colord
-    'doc devdocs'
-    # Also available for freedreno, but we disable that in libdrm.
-    # TODO: Unfortunately the dependecy is automagic, so if we ever provide
-    # x11-dri/libdrm[video_drivers:freedreno] we need to do something about it
-    # (and the option name obviously).
-    'intel simple-dmabuf-drm-client'
-    'rdp rdp-compositor'
-    'rdp screen-sharing'
-    'systemd systemd-login'
-    'systemd systemd-notify'
-    'X x11-compositor'
+MESON_SRC_CONFIGURE_OPTION_SWITCHES+=(
+    'colord color-management-colord'
+    pipewire
+    'rdp backend-rdp'
+    systemd
+    'systemd launcher-logind'
+    'X backend-x11'
     'X xwayland'
+    'lcms2 color-management-lcms'
+    'webp image-webp'
 )
-
-weston_src_compile() {
-    default
-
-    option doc && emake doc
-}
 
 weston_src_install() {
-    default
+    meson_src_install
 
-    #keepdir /usr/$(exhost --target)/libexec
-    if option doc ; then
-        docinto html
-        dodoc -r docs/developer/html/*
-    fi
-    # fcont config
-    insinto /etc/fonts/conf.d
-    doins "${FILES}"/99-noto-cjk.conf
-    # config
-    insinto /etc/xdg/weston
-    doins "${FILES}"/sample-weston.ini
-    # systemd service
-    install_systemd_files
+    edo cd "${IMAGE}"
+
+    local alternatives=( ${PN} ${PNV} ${SLOT} ) prefix=usr/$(exhost --target) dir subdir f
+
+    alternatives+=( /${prefix}/lib/pkgconfig/weston.pc weston-${SLOT}.pc )
+    alternatives+=( /${prefix}/include/weston weston-${SLOT} )
+
+    dir=${prefix}/bin
+    edo pushd ${dir}
+    for f in *; do
+	alternatives+=( /${dir}/${f} ${f}-${SLOT} )
+    done
+    edo popd
+
+    dir=${prefix}/lib/weston
+    edo pushd ${dir}
+    for f in *; do
+	alternatives+=( /${dir}/${f} ${SLOT}/${f} )
+    done
+    edo mkdir ${SLOT}
+    edo popd
+
+    dir=usr/share/man
+    edo pushd ${dir}
+    for subdir in man?; do
+	edo pushd ${subdir}
+	for f in *; do
+	    alternatives+=( /${dir}/${subdir}/${f} ${f%.*}-${SLOT}.${f##*.} )
+	done
+	edo popd
+    done
+    edo popd
+    alternatives+=( /usr/share/weston weston-${SLOT} )
+    alternatives+=( /usr/share/wayland-sessions/weston.desktop weston-${SLOT}.desktop )
+
+    alternatives_for "${alternatives[@]}"
 }

@@ -6,10 +6,10 @@
 # This user is effectively auto-logged in for starting Weston.
 
 [Unit]
-Description=Wayland compositor Weston on %I
+Description=Start weston sesson on %I
 Documentation=man:weston(1) man:weston.ini(5)
 Documentation=http://wayland.freedesktop.org/
-After=systemd-user-sessions.service plymouth-quit-wait.service
+
 
 # Make sure we launch before graphical.target is up.
 Before=graphical.target
@@ -18,21 +18,19 @@ Before=graphical.target
 ConditionPathExists=/dev/tty0
 
 [Service]
-#Type=notify
-#NotifyAccess=main
 Type=simple
-ExecStart=/usr/bin/weston
+ExecStart=/usr/bin/weston-launch -u %I -- --idle-time=0
 UtmpIdentifier=%I
 #UtmpMode=login
-TTYPath=/dev/%I
+TTYPath=/dev/tty9
 TTYReset=yes
 TTYVHangup=yes
 TTYVTDisallocate=yes
 
 # run as pre-configured user
-User=lee
-WorkingDirectory=~
-Environment=WESTON=1 LANG=zh_CN.UTF-8
+#User=%I
+WorkingDirectory=/home/%I
+Environment=WESTON=1 LANG=zh_TW.UTF-8 LANGUAGE=zh_TW:zh_CN:en_US:en_GB
 
 # fail start, if not controlling the tty
 #StandardInput=tty-fail
@@ -46,5 +44,4 @@ PAMName=login
 
 [Install]
 WantedBy=graphical.target
-DefaultInstance=tty1
-
+DefaultInstance=lee

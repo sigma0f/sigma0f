@@ -1,0 +1,89 @@
+# Coyright 2009 Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require alternatives
+require gnome.org [ suffix='tar.xz' ]
+
+require gsettings gtk-icon-cache
+
+SUMMARY="The GIMP Toolkit"
+HOMEPAGE="http://www.gtk.org/"
+
+LICENCES="LGPL-2"
+
+MYOPTIONS=""
+
+gtk+_icon_cache_alternatives() {
+    local host=$(exhost --target)
+    local icon_cache_alternatives=()
+
+    case "${SLOT}" in
+        2)
+            if option man-pages; then
+                icon_cache_alternatives+=("/usr/share/man/man1/gtk-update-icon-cache.1" "gtk-update-icon-cache.1-${SLOT}")
+            fi
+            ;;
+        3)
+            icon_cache_alternatives+=("/usr/share/man/man1/gtk-update-icon-cache.1" "gtk-update-icon-cache.1-${SLOT}")
+            ;;
+        *)
+            icon_cache_alternatives+=(
+                "/usr/share/man/man1/gtk-update-icon-cache.1" "gtk${SLOT:0:1}-update-icon-cache.1"
+                "/usr/${host}/bin/gtk-update-icon-cache" "gtk${SLOT:0:1}-update-icon-cache"
+            )
+            ;;
+    esac
+
+    if ! ever at_least 3.89; then
+        icon_cache_alternatives+=("/usr/${host}/bin/gtk-update-icon-cache" "gtk-update-icon-cache-${SLOT}")
+    fi
+
+    alternatives_for _${host}_gtk-update-icon-cache ${SLOT} ${SLOT} "${icon_cache_alternatives[@]}"
+}
+
+gtk+_builder_alternatives() {
+    local builder_alternatives=()
+    local ext
+
+    for ext in its loc; do
+        builder_alternatives+=( /usr/share/{gettext/its,gtk-${SLOT:0:1}.0}/gtkbuilder.${ext} )
+    done
+
+    alternatives_for _$(exhost --target)_gtkbuilder ${SLOT} ${SLOT} "${builder_alternatives[@]}"
+}
+
+gtk+_settings_alternatives() {
+    local settings_alternatives=()
+    local setting
+
+    for setting in Demo Settings.Debug Settings.ColorChooser Settings.FileChooser Settings.EmojiChooser; do
+        settings_alternatives+=( /usr/share/{glib-2.0/schemas,gtk-${SLOT:0:1}.0}/org.gtk.${setting}.gschema.xml )
+    done
+
+    alternatives_for _$(exhost --target)_gtk_settings ${SLOT} ${SLOT} "${settings_alternatives[@]}"
+}
+
+gtk+_alternatives() {
+    gtk+_icon_cache_alternatives
+    if ! ever at_least 3.96; then
+        gtk+_builder_alternatives
+        gtk+_settings_alternatives
+    fi
+}
+
+gtk+_pkg_postinst() {
+    alternatives_pkg_postinst
+    if ever at_least 3.89; then
+        nonfatal edo gtk${SLOT:0:1}-query-immodules --update-cache
+    else
+        nonfatal edo gtk-query-immodules-${SLOT}.0 --update-cache
+    fi
+    if ever at_least 3; then
+        gsettings_exlib_compile_gsettings_schemas
+    fi
+    gtk_icon_cache_exlib_save_theme_directories "${ROOT}"
+    gtk_icon_cache_exlib_update_theme_cache
+}
+
+export_exlib_phases pkg_postinst
+

@@ -1,0 +1,11 @@
+# Copyright 2008 Alexander Færøy <eroyf@eroyf.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require libdrm
+
+PLATFORMS="~amd64"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+    "${FILES}"/${PN}-meson-Also-search-for-rst2man.py.patch
+)
+

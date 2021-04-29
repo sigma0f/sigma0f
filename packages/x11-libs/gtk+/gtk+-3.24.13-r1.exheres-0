@@ -1,0 +1,135 @@
+# Copyright 2008 Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+# Based in part upon 'gtk+-2.13.2.ebuild' from Gentoo which is:
+#    Copyright 1999-2008 Gentoo Foundation
+
+require gtk+
+
+SLOT="3"
+PLATFORMS="~amd64 ~armv8 ~x86"
+
+LANGS="af am ang ar as ast az_IR az be@latin be bg bn_IN bn br bs ca ca@valencia crh cs cy da de dz
+el en_CA en_GB en en@shaw eo es et eu fa fi fr ga gl gu he hi hr hu hy ia id io is it ja ka kg kk kn
+ko ku lg li lt lv mai mi mk ml mn mr ms my nb nds ne nl nn nso oc or pa pl ps pt_BR pt ro ru rw si
+sk sl sq sr@ije sr@latin sr sv ta te th tk tr tt ug uk ur uz@cyrillic uz vi wa xh yi zh_CN zh_HK
+zh_TW"
+
+MYOPTIONS="
+cloudprint [[ description = [ enable google cloudprint compatibility ] ]]
+colord [[
+    description = [ color profiling support for the CUPS printing backend ]
+    requires = [ cups ]
+]]
+cups
+gobject-introspection
+gtk-doc
+wayland
+X
+( wayland X ) [[ number-selected = at-least-one ]]
+linguas: ${LANGS}"
+
+#         gnome-desktop/gobject-introspection:1 [[ note = [ for m4 ] ]]
+DEPENDENCIES="
+    build:
+        sys-devel/gettext
+        virtual/pkg-config[>=0.20]
+        gtk-doc? ( dev-doc/gtk-doc[>=1.20] )
+        X? ( x11-proto/xorgproto )
+        wayland? ( sys-libs/wayland-protocols[>=1.14] )
+    build+run:
+        dev-libs/glib:2[>=2.57.2]
+        dev-libs/libepoxy[>=1.4][X?]
+        x11-dri/mesa[X?][wayland=]
+        x11-libs/pango[>=1.41.0][gobject-introspection?]
+        x11-libs/cairo[>=1.14.0][X?]
+        dev-libs/atk[>=2.15.1][gobject-introspection?]
+        x11-libs/gdk-pixbuf:2.0[>=2.30.0][gobject-introspection?]
+        x11-libs/harfbuzz
+        !x11-libs/gtk+:2[<2.24] [[
+            description = [ Both install gtk-update-icon-cache ]
+            resolution = upgrade-blocked-before
+        ]]
+        cloudprint? (
+            core/json-glib
+            net-libs/rest
+        )
+        colord? ( sys-apps/colord[>=0.1.9] )
+        cups? ( net-print/cups[>=1.7] )
+        gobject-introspection? ( gnome-desktop/gobject-introspection:1[>=1.39.0] )
+        X? (
+            dev-libs/at-spi2-atk[>=2.5.3]
+            media-libs/fontconfig
+            x11-libs/libX11
+            x11-libs/libXext
+            x11-libs/libXinerama
+            x11-libs/libXi
+            x11-libs/libXrandr[>=1.5]
+            x11-libs/libXcursor
+            x11-libs/libXfixes
+            x11-libs/libXcomposite
+            x11-libs/libXdamage
+        )
+        wayland? (
+            sys-libs/wayland[>=1.9.91]
+            x11-libs/libxkbcommon[>=0.2.0]
+        )
+    suggestion:
+        x11-themes/hicolor-icon-theme
+        gnome-desktop/adwaita-icon-theme    [[
+            description = [ Default icon theme, many themes may require it ]
+        ]]
+        gnome-desktop/gnome-themes-standard [[
+            description = [ Default GTK themes, many themes may require them ]
+        ]]
+        app-vim/gtk-syntax [[
+            description = [ A collection of vim syntax files for various GTK+ C extensions ]
+        ]]
+        gnome-desktop/evince [[
+            description = [ used for print preview functionality ]
+        ]]
+        cups? (
+            net-dns/avahi [[
+                description = [ used for mDNS printer discovery support ]
+            ]]
+        )
+"
+
+RESTRICT="test" # require X
+
+# NOTE(compnerd) explicitly override the paths as the prefix path is used for finding the themes
+DEFAULT_SRC_CONFIGURE_PARAMS=( --prefix=/usr --exec-prefix=/usr/$(exhost --target)
+                               --includedir=/usr/$(exhost --target)/include
+                               --disable-man --disable-papi --disable-profiler
+                               --disable-win32-gles )
+DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
+    'cloudprint'
+    'colord'
+    'cups'
+    'gtk-doc'
+    'gobject-introspection introspection'
+    'wayland wayland-backend'
+    'X x11-backend'
+    'X xcomposite'
+    'X xdamage'
+    'X xfixes'
+    'X xinerama'
+    'X xrandr'
+)
+
+src_prepare() {
+    default
+    edo sed -i "/AC_PATH_PROG(PKG_CONFIG/d" m4macros/gtk-3.0.m4
+}
+
+src_configure() {
+    CC_FOR_BUILD="$(exhost --target)-cc"                  \
+    PKG_CONFIG_FOR_BUILD="$(exhost --target)-pkg-config"  \
+    default
+}
+
+src_install() {
+    default
+    gtk+_alternatives
+    edo find "${IMAGE}" -type d -empty -delete
+}
+

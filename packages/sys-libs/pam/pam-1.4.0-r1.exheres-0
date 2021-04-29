@@ -1,0 +1,14 @@
+# Copyright 2009-2016 Wulf C. Krueger
+# Distributed under the terms of the GNU General Public License v2
+
+require pam_build
+
+PLATFORMS="~amd64 ~arm ~armv7 ~armv8 ~x86"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+    "${FILES}"/c5700c0a04c85ace09f6a179cc7a3692c07282b0.patch
+    "${FILES}"/c9593778a6133bf29eb2f47c24cc6d2f5d729fc8.patch
+    "${FILES}"/0adbaeb273da1d45213134aa271e95987103281c.patch
+    "${FILES}"/395915dae1571e10e2766c999974de864655ea3a.patch
+)
+

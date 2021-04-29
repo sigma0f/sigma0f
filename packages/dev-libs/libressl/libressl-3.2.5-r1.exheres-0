@@ -1,0 +1,15 @@
+# Copyright 2014 William Orr <will@worrbase.com>
+# Copyright 2015 Johannes Nixdorf <mixi@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+# the information is in ${subdir}/VERSION
+# $ for lib in crypto ssl tls; do ver=$(<${lib}/VERSION); ver=${ver%:0}; echo -n LIB${lib}_VER= | tr '[a-z]' '[A-Z]'; echo ${ver%:*}.0.${ver#*:}; done
+LIBCRYPTO_VER=46.0.1
+LIBSSL_VER=48.0.1
+LIBTLS_VER=20.0.1
+
+require libressl
+
+PLATFORMS="~amd64"
+
+

@@ -1,0 +1,162 @@
+# Copyright 2008 Wulf Krueger <philantrop@exherbo.org>
+# Copyright 2008, 2009, 2010 Ingmar Vanhassel <ingmar@exherbo.org>
+# Copyright 2014-2017 Heiko Becker <heirecka@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+# Based in part upon 'cmake-2.6.0.ebuild' from Gentoo, which is:
+#     Copyright 1999-2008 Gentoo Foundation.
+
+require cmake [ out_of_source=false ]
+require bash-completion elisp [ with_opt=true source_directory=Auxiliary ] flag-o-matic
+
+export_exlib_phases src_prepare src_configure src_compile src_test src_install
+
+SUMMARY="Cross platform Make"
+HOMEPAGE="https://www.cmake.org"
+DOWNLOADS="${HOMEPAGE}/files/v$(ever range 1-2)/${PNV}.tar.gz"
+
+LICENCES="
+    BSD-3
+"
+SLOT="0"
+MYOPTIONS="
+    bootstrap [[ description = [ Use the internal jsoncpp (it needs cmake to build itself) ] ]]
+    doc       [[ description = [ Install HTML documentation and man pages ] ]]
+    ncurses
+    openssl
+    vim-syntax
+    ( parts: binaries data development documentation )
+"
+
+DEPENDENCIES="
+    build:
+	virtual/pkg-config
+        !bootstrap? ( sys-devel/cmake )
+	doc? ( dev-python/Sphinx[>=1.6.5] )
+    build+run:
+	ncurses? ( sys-libs/ncurses )
+"
+# TODO: Versions >= 3.5.0 bundle KWIML (Kitware Information Macro Library,
+# https://github.com/Kitware/KWIML ). It's currently not used elsewhere,
+# handled a bit differently than other bundled dependencies and, most
+# importantly, there's no released tarball. So for now we stick with the
+# bundled version.
+
+BASH_COMPLETIONS=(
+    Auxiliary/bash-completion/cmake
+    'Auxiliary/bash-completion/cpack cpack'
+    'Auxiliary/bash-completion/ctest ctest'
+)
+
+# TODO: Tests are broken because of the multiarch migration. One problem is,
+# that we probably need to figure out a way to pass our arch prefixed tools to
+# the relevant tests. Additionally cmake isn't really verbose about what's
+# wrong. So better disable them for now until someone finds time to fix them
+# (heirecka).
+RESTRICT="test"
+
+VIMFILE="${PN}.vim"
+
+DEFAULT_SRC_TEST_PARAMS=( ARGS=--verbose )
+
+cmake-build_src_prepare() {
+    default
+
+    # Don't install bash-completions, use bash-completion.exlib
+    edo sed -e '/^install(FILES cmake cpack/d' \
+	    -i Auxiliary/bash-completion/CMakeLists.txt
+
+    # Teach it about our suffixed qcollectiongenerator
+    edo sed \
+	-e "/NAMES /s/qcollectiongenerator/qcollectiongenerator-qt5 &/" \
+	-i Utilities/Sphinx/CMakeLists.txt
+}
+
+cmake-build_src_configure() {
+    local host=$(exhost --target)
+    local bootstrap_params=(
+	--parallel=${EXJOBS:-1}
+	--no-qt-gui
+	--prefix=/usr/${host}
+	--docdir=/../share/doc/${PNVR}
+	--datadir=/../share/${PN}
+	--mandir=/../share/man
+	--xdgdatadir=/../share
+	--verbose
+	$(option doc && echo "--sphinx-info")
+	$(option doc && echo "--sphinx-man --sphinx-html")
+	$(option bootstrap && echo "--no-system-libs")
+    )
+
+    local cmakeargs=(
+	-DCMAKE_DATA_DIR:PATH=/../share/${PN}
+	-DCMAKE_DOC_DIR:PATH=/../share/doc/${PNVR}
+	-DCMAKE_MAN_DIR:PATH=/../share/man
+	-DCMAKE_XDGDATA_DIR:PATH=/../share
+
+	$(cmake_option doc SPHINX_HTML)
+	$(cmake_option doc SPHINX_INFO)
+	$(cmake_option doc SPHINX_MAN)
+
+	$(cmake_option openssl CMAKE_USE_OPENSSL)
+
+	$(cmake_build ncurses CursesDialog)
+	$(expecting_tests "-DBUILD_TESTING:BOOL=ON" "-DBUILD_TESTING:BOOL=OFF")
+    )
+
+    if option bootstrap; then
+	# Keep the bootstrap script from configuring the real cmake
+	edo sed -e '/"${cmake_bootstrap_dir}\/cmake"/s/^/# /' \
+		-i bootstrap
+
+	# TODO(tridactyla): There are still some issues with cross-compiling to a non-native platform
+	# related to generating documentation (it tries to run executables it just built).
+	edo env                                                                     \
+	    CC="$(exhost --build)-cc"                                               \
+	    CXX="$(exhost --build)-c++"                                             \
+	    CFLAGS="$(print-build-flags CFLAGS)"				    \
+	    CXXFLAGS="$(print-build-flags CXXFLAGS) -static-libstdc++"              \
+	    LDFLAGS="$(print-build-flags LDFLAGS)"                                  \
+	./bootstrap "${bootstrap_params[@]}"
+
+	CMAKE_BINARY=${PWD}/Bootstrap.cmk/cmake
+
+	cmakeargs+=(
+	    -DCMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES:PATH=/usr/$(exhost --target)/include
+	    -DCMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES:PATH=/usr/$(exhost --target)/include
+	)
+    fi
+
+    cmakeargs+=(
+	# Only relevant when using the bundled libarchive
+	-DCMAKE_USE_SYSTEM_ZSTD:BOOL=FALSE
+	-DCMake_TEST_NO_NETWORK:BOOL=TRUE
+	$(cmake_option !bootstrap CMAKE_USE_SYSTEM_JSONCPP)
+    )
+
+    ecmake "${cmakeargs[@]}"
+}
+
+cmake-build_src_compile() {
+    default
+    elisp_src_compile
+}
+
+cmake-build_src_test() {
+    edo bin/ctest -V -E "CTestTestFailedSubmit|Qt4And5AutomocReverse"
+}
+
+cmake-build_src_install() {
+    default
+
+    bash-completion_src_install
+    elisp_src_install
+
+    option emacs|| edo rm -r "${IMAGE}"/usr/share/emacs
+    option vim-syntax || edo rm -r "${IMAGE}"/usr/share/vim
+
+    expart binaries /usr/$(exhost --target)/bin
+    expart data /usr/share
+    expart documentation /usr/share/{doc,info,man,cmake/Help}
+    expart development /usr/share/cmake/include /usr/share/aclocal
+    edo find "${IMAGE}"/usr/share/cmake -type d -empty -delete
+}

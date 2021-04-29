@@ -1,0 +1,134 @@
+diff --git a/Makeconfig b/Makeconfig
+index daed1892..2a692b3d 100644
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -643,37 +643,37 @@ ifneq ($(have-cc-with-libunwind),yes)
+ else
+   libunwind = -lunwind
+ endif
+-libgcc_eh := -Wl,--as-needed -lgcc_s $(libunwind) -Wl,--no-as-needed
++libgcc_eh := -Wl,--as-needed $(libunwind) -Wl,--no-as-needed
+ gnulib-arch =
+-gnulib = -lgcc $(gnulib-arch)
+-gnulib-tests := -lgcc $(libgcc_eh)
++gnulib = $(gnulib-arch)
++gnulib-tests := $(libgcc_eh)
+ static-gnulib-arch =
+ # By default, elf/static-stubs.o, instead of -lgcc_eh, is used to
+ # statically link programs.  When --disable-shared is used, we use
+ # -lgcc_eh since elf/static-stubs.o isn't sufficient.
+ ifeq (yes,$(build-shared))
+-static-gnulib = -lgcc $(static-gnulib-arch)
++static-gnulib = $(static-gnulib-arch)
+ else
+-static-gnulib = -lgcc -lgcc_eh $(static-gnulib-arch)
++static-gnulib = $(static-gnulib-arch)
+ endif
+-static-gnulib-tests := -lgcc -lgcc_eh $(libunwind)
+-libc.so-gnulib := -lgcc
++static-gnulib-tests := $(libunwind)
++libc.so-gnulib :=
+ endif
+ +preinit = $(addprefix $(csu-objpfx),crti.o)
+ +postinit = $(addprefix $(csu-objpfx),crtn.o)
+-+prector = `$(CC) $(sysdep-LDFLAGS) --print-file-name=crtbegin.o`
+-+postctor = `$(CC) $(sysdep-LDFLAGS) --print-file-name=crtend.o`
+++prector =
+++postctor =
+ # Variants of the two previous definitions for linking PIE programs.
+-+prectorS = `$(CC) $(sysdep-LDFLAGS) --print-file-name=crtbeginS.o`
+-+postctorS = `$(CC) $(sysdep-LDFLAGS) --print-file-name=crtendS.o`
+++prectorS =
+++postctorS =
+ # Variants of the two previous definitions for statically linking programs.
+ ifeq (yes,$(enable-static-pie))
+ # Static PIE must use PIE variants.
+ +prectorT = $(+prectorS)
+ +postctorT = $(+postctorS)
+ else
+-+prectorT = `$(CC) $(sysdep-LDFLAGS) --print-file-name=crtbeginT.o`
+-+postctorT = `$(CC) $(sysdep-LDFLAGS) --print-file-name=crtend.o`
+++prectorT =
+++postctorT =
+ endif
+ csu-objpfx = $(common-objpfx)csu/
+ elf-objpfx = $(common-objpfx)elf/
+diff --git a/Makefile b/Makefile
+index 4a014d6e..43ec9f4f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -108,7 +108,7 @@ install-symbolic-link: subdir_install
+ 
+ install:
+ 	-test ! -x $(elf-objpfx)ldconfig || LC_ALL=C \
+-	  $(elf-objpfx)ldconfig $(addprefix -r ,$(install_root)) \
++	  $(elf-objpfx)ldconfig -N $(addprefix -r ,$(install_root)) \
+ 				$(slibdir) $(libdir)
+ ifneq (no,$(PERL))
+ ifeq (/usr,$(prefix))
+diff --git a/Makerules b/Makerules
+index ef529288..a637d33b 100644
+--- a/Makerules
++++ b/Makerules
+@@ -542,7 +542,7 @@ lib%.so: lib%_pic.a $(+preinit) $(+postinit) $(link-libc-deps)
+ 	$(call after-link,$@)
+ 
+ define build-shlib-helper
+-$(LINK.o) -shared -static-libgcc -Wl,-O1 $(sysdep-LDFLAGS) \
++$(LINK.o) -shared -Wl,-O1 $(sysdep-LDFLAGS) \
+ 	  $(if $($(@F)-no-z-defs)$(no-z-defs),,-Wl,-z,defs) $(rtld-LDFLAGS) \
+ 	  $(extra-B-$(@F:lib%.so=%).so) -B$(csu-objpfx) \
+ 	  $(extra-B-$(@F:lib%.so=%).so) $(load-map-file) \
+@@ -601,7 +601,7 @@ $(build-shlib-helper) -o $@ $(shlib-lds-flags) \
+ endef
+ 
+ define build-module-helper
+-$(LINK.o) -shared -static-libgcc $(sysdep-LDFLAGS) $(rtld-LDFLAGS) \
++$(LINK.o) -shared $(sysdep-LDFLAGS) $(rtld-LDFLAGS) \
+ 	  $(if $($(@F)-no-z-defs)$(no-z-defs),,-Wl,-z,defs) \
+ 	  -B$(csu-objpfx) $(load-map-file) \
+ 	  $(LDFLAGS.so) $(LDFLAGS-$(@F:%.so=%).so) \
+@@ -1082,7 +1082,7 @@ else
+ 		  $(LDFLAGS.so) $(LDFLAGS-lib.so) \
+ 		  -x c /dev/null -o $@.so -Wl,--verbose -v 2>&1 \
+ 	| sed -n -f $< > $@.new
+-	test -s $@.new
++	true || test -s $@.new
+ 	rm -f $@.so
+ endif
+ 	mv -f $@.new $@
+diff --git a/elf/Makefile b/elf/Makefile
+index bce74163..00fcf6fb 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -458,7 +458,7 @@ endif
+ $(objpfx)librtld.map: $(objpfx)dl-allobjs.os $(common-objpfx)libc_pic.a
+ 	@-rm -f $@T
+ 	$(reloc-link) -o $@.o $(dummy-stack-chk-fail) \
+-		'-Wl,-(' $^ -lgcc '-Wl,-)' -Wl,-Map,$@T
++		'-Wl,-(' $^ '-Wl,-)' -Wl,-Map,$@T
+ 	rm -f $@.o
+ 	mv -f $@T $@
+ 
+@@ -488,7 +488,7 @@ $(objpfx)rtld-libc.a: $(objpfx)librtld.mk FORCE
+ 	$(MAKE) -f $< -f rtld-Rules
+ 
+ $(objpfx)librtld.os: $(objpfx)dl-allobjs.os $(objpfx)rtld-libc.a
+-	$(LINK.o) -nostdlib -nostartfiles -r -o $@ '-Wl,-(' $^ -lgcc '-Wl,-)' \
++	$(LINK.o) -nostdlib -nostartfiles -r -o $@ '-Wl,-(' $^ '-Wl,-)' \
+ 		  -Wl,-Map,$@.map
+ 
+ generated += librtld.map librtld.mk rtld-libc.a librtld.os.map
+diff --git a/support/Makefile b/support/Makefile
+index c15b9364..fc410dc3 100644
+--- a/support/Makefile
++++ b/support/Makefile
+@@ -174,7 +174,7 @@ ifeq (,$(CXX))
+ LINKS_DSO_PROGRAM = links-dso-program-c
+ else
+ LINKS_DSO_PROGRAM = links-dso-program
+-LDLIBS-links-dso-program = -lstdc++ -lgcc -lgcc_s $(libunwind)
++LDLIBS-links-dso-program = $(libunwind)
+ endif
+ 
+ LDLIBS-test-container = $(libsupport)

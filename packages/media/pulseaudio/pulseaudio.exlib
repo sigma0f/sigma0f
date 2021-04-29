@@ -6,7 +6,8 @@ require bash-completion \
     systemd-service \
     udev-rules \
     zsh-completion \
-    autotools [ supported_autoconf=[ 2.5 ] supported_automake=[ 1.16 1.15 ] ]
+    autotools [ supported_autoconf=[ 2.5 ] supported_automake=[ 1.16 ] ] \
+    gsettings
 
 export_exlib_phases src_prepare src_install
 
@@ -20,8 +21,6 @@ if ever is_scm; then
 else
     DOWNLOADS="https://freedesktop.org/software/${PN}/releases/${PNV}.tar.xz"
 fi
-
-REMOTE_IDS="freecode:${PN}"
 
 UPSTREAM_CHANGELOG="${HOMEPAGE}/Notes/${PV} [[ lang = en ]]"
 
@@ -41,26 +40,25 @@ LICENCES="
 "
 SLOT="0"
 MYOPTIONS="
-    doc
     X [[ description = [ Enable X session integration ] ]]
     async-dns [[ description = [ Support for asynchronous name service queries ] ]]
-    ipv6
     avahi
     bluetooth
     caps
     equalizer [[ description = [ Modules which need equalizer functions ] ]]
+    gdbm
+    gstreamer [[ description = [ Enable optional GStreamer-based RTP support ] ]]
     gtk
     jack
     journald
     oss
-    glib
+    orc
     tcpd
-    lirc
-    openssl
     webrtc-aec [[ description = [ Alternative to speex for echo cancellation, has higher quality ] ]]
     arm_cpu_features: neon
-    ( linguas: as be bn_IN ca cs de de_CH el es fi fr gl gu he hi hr hu id it ja kn ko lt ml mr nl
-               nn oc or pa pl pt pt_BR ru sk sr sr@latin sv ta te tr uk zh_CN zh_TW )
+    ( linguas: af as be bn_IN ca cs da de de_CH el es fi fr gl gu he hi hr hu id it ja kn ko lt ml
+               mr nl nn oc or pa pl pt pt_BR ru sk sr sr@latin sv ta te tr uk zh_CN zh_TW )
+    ( providers: libressl openssl ) [[ number-selected = at-most-one ]]
     ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
     ( providers: consolekit elogind systemd ) [[
         *description = [ Session tracking provider ]
@@ -70,19 +68,28 @@ MYOPTIONS="
 
 DEPENDENCIES="
     build:
-        dev-util/intltool[>=0.35.0]
-        sys-devel/gettext[>=0.18.1]
+        sys-devel/gettext[>=0.19.8]
         virtual/pkg-config[>=0.20]
     build+run:
         group/audio
         group/pulse
         group/pulse-access
+        group/pulse-rt
         user/pulse
-	media-libs/libsndfile[>=1.0.28]
-        sys-sound/alsa-lib[>=1.0.19]
-	glib? ( dev-libs/glib:2[>=2.4.0] )
+        dev-libs/glib:2[>=2.26.0]
+	orc? (
+             dev-libs/orc:0.4[>=0.4.16] [[
+             				note = [ dev-libs/orc-0.4.15 is known to cause freezes, see https://bugs.freedesktop.org/show_bug.cgi?id=41589 ]
+            ]]
+	)
+        media-libs/libsndfile[>=1.0.20]
+        media-libs/speexdsp
         sys-apps/dbus[>=1.4.12][providers:consolekit?][providers:elogind?][providers:systemd?]
         sys-devel/libtool[>=2.4]
+        gdbm? (
+	    sys-libs/gdbm
+	)
+        sys-sound/alsa-lib[>=1.0.19]
         X? (
             x11-libs/libICE
             x11-libs/libSM
@@ -99,11 +106,17 @@ DEPENDENCIES="
         )
         caps? ( sys-libs/libcap )
         equalizer? ( sci-libs/fftw )
-        gtk? ( x11-libs/gtk+:3[>=3.0] )
+        gstreamer? ( 
+            media-libs/gstreamer:1.0[>=1.14][gobject-introspection]
+            media-plugins/gst-plugins-base:1.0
+        )
+        gtk? ( x11-libs/gtk+:3[>=3.0][X] )
         jack? ( media-sound/jack-audio-connection-kit[>=0.117] )
         journald? ( sys-apps/systemd[>=165] )
         providers:elogind? ( sys-auth/elogind[>=165] )
         providers:eudev? ( sys-apps/eudev )
+        providers:libressl? ( dev-libs/libressl:= )
+        providers:openssl? ( dev-libs/openssl:= )
         providers:systemd? ( sys-apps/systemd[>=165] )
         tcpd? ( sys-apps/tcp-wrappers )
         webrtc-aec? ( media-libs/webrtc-audio-processing[>=0.2] )
@@ -112,44 +125,42 @@ DEPENDENCIES="
     test:
         dev-libs/check[>=0.9.10]
     recommendation:
-        sys-sound/alsa-plugins[pulseaudio]
     suggestion:
+        sys-sound/alsa-plugins[pulseaudio]
         media-sound/pavucontrol [[ description = [ Provides a simple GTK based volume mixer tool ] ]]
         media-sound/pulseaudio-dlna [[ description = [ Stream to DLNA/UPNP and Chromecast devices via PulseAudio ] ]]
+        sys-sound/oss [[ description = [ Provides an alternative sound architecture instead of ALSA ] ]]
         sound-themes/sound-theme-freedesktop [[ description = [ Sample PulseAudio event sounds mentioned in default.pa ] ]]
 "
 
-DEFAULT_SRC_PREPARE_PATCHES=(
-    "${FILES}"/pulseaudio-support-elogind.patch
-)
+if ever is_scm; then
+    DEPENDENCIES+="
+        build:
+            dev-util/intltool[>=0.35.0]
+    "
+fi
 
 DEFAULT_SRC_CONFIGURE_PARAMS=(
-    --enable-option-checking
     --localstatedir=/var
     --enable-alsa # udev needs alsa or oss support
     --enable-dbus # recommended by upstream
+    --disable-glib2
+    --enable-gsettings # We already depend on glib anyway and this just builds a module
+    --enable-ipv6
+    --disable-manpages
     --enable-memfd
-    --disable-tests
-    --disable-samplerate
-    --disable-oss-output
-    --disable-oss-wrapper
-    --disable-coreaudio-output
-    --disable-esound
-    --disable-solaris
-    --disable-waveout
-    --disable-gconf    
-    --disable-bluez4
-    --disable-bluez5-ofono-headset
+    --disable-openssl
     --enable-udev
-    --disable-hal-compat
-    --disable-gcov
-    --disable-orc
+    --disable-adrian-aec # alternative to speex
+    --disable-bluez5-ofono-headset
+    --disable-esound
+    --disable-gconf
+    --disable-lirc
     --disable-per-user-esound-socket
-    --disable-hal-compat
+    --disable-samplerate
+    --disable-solaris
     --disable-default-build-tests
     --disable-legacy-database-entry-format
-    --disable-force-preopen
-    --with-database=simple # alternative tdb or simple
     --with-systemduserunitdir="${SYSTEMDUSERUNITDIR}"
     --with-udev-rules-dir="${UDEVRULESDIR}"
     CFLAGS="${CFLAGS} -D_GNU_SOURCE"
@@ -162,6 +173,7 @@ DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
     avahi
     'bluetooth bluez5'
     'bluetooth bluez5-native-headset'
+    gstreamer
     'gtk gtk3'
     jack
     'journald systemd-journal'
@@ -171,12 +183,7 @@ DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
     'providers:systemd systemd-daemon'
     'providers:systemd systemd-login'
     'tcpd tcpwrap'
-    'doc manpages'
-    'glib glib2'
     webrtc-aec
-    lirc
-    openssl
-    ipv6
 )
 DEFAULT_SRC_CONFIGURE_OPTION_WITHS=(
     "bash-completion bash-completion-dir /usr/share/bash-completion/completions"
@@ -189,11 +196,13 @@ DEFAULT_SRC_CONFIGURE_TESTS=( '--enable-tests --disable-tests' )
 AT_M4DIR=( m4 )
 
 pulseaudio_src_prepare() {
-    # Pulseaudio i18n is weird
-    edo mkdir -p build-aux
-    edo touch build-aux/config.rpath
+    # fix running autotools
+    if ever is_scm; then
+        edo mkdir -p build-aux
+        edo touch build-aux/config.rpath
+        edo intltoolize --automake --copy --force
+    fi
 
-    edo intltoolize --automake --copy --force
     autotools_src_prepare
 }
 
@@ -201,8 +210,11 @@ pulseaudio_src_install() {
     default
 
     # keep the administrator's override directives directories
-    keepdir /etc/pulse/{client,deamon}.conf.d
-    
+    keepdir /etc/pulse/{client,daemon}.conf.d
+
+    insinto /etc/security/limits.d/
+    doins "${FILES}"/pulse-rt.conf
+
     keepdir /usr/$(exhost --target)/libexec/pulse
 
     option providers:systemd || option providers:elogind && edo sed \
@@ -211,4 +223,3 @@ pulseaudio_src_install() {
 
     ! option zsh-completion && edo rm -r "${IMAGE}"/no
 }
-

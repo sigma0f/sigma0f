@@ -1,0 +1,188 @@
+# Copyright 2007 Bryan Østergaard
+# Distributed under the terms of the GNU General Public License v2
+
+require alternatives
+
+export_exlib_phases src_configure src_compile src_test src_install
+
+SUMMARY="Open source SSL and TLS implementation and cryptographic library"
+HOMEPAGE="https://www.openssl.org"
+DOWNLOADS="${HOMEPAGE}/source/${PNV/_/-}.tar.gz"
+
+UPSTREAM_CHANGELOG="${HOMEPAGE}/news/changelog.html [[ lang = en ]]"
+UPSTREAM_DOCUMENTATION="${HOMEPAGE}/docs/ [[ lang = en ]]"
+UPSTREAM_RELEASE_NOTES="${HOMEPAGE}/news/announce.html [[ lang = en ]]"
+
+if ever at_least 2; then
+    SOVER="$(ever major)"
+    SLOT="${SOVER}"
+    LICENCES="Apache-2.0"
+else
+    SOVER="$(ever range 1-2)"
+    SLOT="0" # clean upgrade path for 1.1
+    LICENCES="${PN}"
+fi
+
+MYOPTIONS="doc shared parts: binaries configuration development documentation libraries"
+
+WORK="${WORKBASE}/${PNV/_/-}"
+
+DEPENDENCIES="
+    build+run:
+        !dev-libs/libressl:* [[
+            description = [ LibreSSL is a drop-in replacement for OpenSSL with same library name ]
+            resolution = uninstall-blocked-after
+        ]]
+"
+
+# Tests don't run in parallel
+DEFAULT_SRC_TEST_PARAMS=( -j1 )
+
+_openssl_host_os() {
+    # local configuration=(
+    #   alpha64:linux-alpha-gcc # TODO(compnerd) Alpha64 ev56+ needs -mcpu, linux-alpha+bwx-gcc
+    #   amd64:linux-x86_64
+    #   arm:linux-armv4 # TODO(compnerd) do we want to port android armv7 to Linux?
+    #   ia64:linux-ia64 # TODO(compnerd) ICC should be linux-ia64-icc
+    #   ppc:linux-ppc
+    #   ppc64:linux-ppc64
+    #   s390:linux${MULTIBUILD_TARGET}-s390x
+    #   sparc:linux-sparcv9 # XXX(compnerd) do we even care about sparc v8?
+    #   sparc64:linux64-sparcv9
+    #   x86:linux-elf # TODO(compnerd) ICC should be linux-ia32-icc
+    # )
+    case "$(exhost --target)" in
+    arm*-*-linux-*)
+        echo linux-armv4
+    ;;
+    aarch64-*-linux-*)
+        echo linux-aarch64
+    ;;
+    i686-*-linux-*)
+        echo linux-elf
+    ;;
+    x86_64-*-linux-*)
+        echo linux-x86_64
+    ;;
+    *)
+        die "unknown OpenSSL host/os for $(exhost --target)"
+    ;;
+    esac
+}
+
+openssl_src_configure() {
+    # LDFLAGS is out of the question thanks to the 'clever':
+    # DO_GNU_APP=LDFLAGS="$(CFLAGS) -Wl,-rpath,$(LIBRPATH)"
+    # We would like to use SHARED_LDFLAGS but that only works for .so's
+    # So instead we just cheat and add LDFLAGS to CFLAGS so it gets
+    # everywhere it needs to be along with some places where its harmless.
+    export CFLAGS="${CFLAGS} ${LDFLAGS}"
+
+    edo "${WORK}"/Configure $(_openssl_host_os) \
+        --test-sanity
+
+    SHARED=
+    if option shared; then
+       SHARED=shared
+    else
+       SHARED=no-shared
+    fi
+
+    edo "${WORK}"/Configure $(_openssl_host_os) \
+        --prefix=/usr/$(exhost --target) --openssldir=/etc/ssl ${SHARED} \
+	threads -fPIC -fPIE 
+}
+
+openssl_src_compile() {
+    # TODO(compnerd) fix parallel build
+    local mymake=(
+        -j1
+        LIBDIR=lib
+        MANDIR=/usr/share/man
+        ENGINESDIR=/usr/$(exhost --target)/lib/engines-${SOVER}
+        MODULESDIR=/usr/$(exhost --target)/lib/ossl-modules-${SOVER}
+    )
+
+    emake "${mymake[@]}"
+}
+
+openssl_src_test() {
+    esandbox allow_net --connect "inet:127.0.0.1@65535"
+    default
+    esandbox disallow_net --connect "inet:127.0.0.1@65535"
+}
+
+openssl_src_install() {
+    local myinstall=(
+        -j1
+        LIBDIR=lib
+        MANDIR=/usr/share/man
+        DESTDIR="${IMAGE}"
+        DOCDIR=/usr/share/doc/${PNVR}
+        ENGINESDIR=/usr/$(exhost --target)/lib/engines-${SOVER}
+        MODULESDIR=/usr/$(exhost --target)/lib/ossl-modules-${SOVER}
+    )
+
+    emake "${myinstall[@]}" install
+
+    local lib
+
+    if option shared; then
+        for lib in crypto ssl; do
+            edo rm "${IMAGE}"/usr/$(exhost --target)/lib/lib${lib}.so
+            alternatives_for _$(exhost --target)_${PN}_${lib} ${SOVER} ${SOVER} \
+                             /usr/$(exhost --target)/lib/lib${lib}.so{,.${SOVER}}
+        done
+    fi
+    # alternatives to support multiple slots, architecture dependent files
+    alternatives_for \
+        _$(exhost --target)_${PN} ${SOVER} ${SOVER} \
+        /usr/$(exhost --target)/bin/c_rehash{,-${SOVER}} \
+        /usr/$(exhost --target)/bin/openssl{,-${SOVER}} \
+        /usr/$(exhost --target)/lib/libcrypto.a{,-${SOVER}} \
+        /usr/$(exhost --target)/lib/libssl.a{,-${SOVER}} \
+        /usr/$(exhost --target)/lib/pkgconfig/libcrypto.pc{,-${SOVER}} \
+        /usr/$(exhost --target)/lib/pkgconfig/libssl.pc{,-${SOVER}} \
+        /usr/$(exhost --target)/lib/pkgconfig/openssl.pc{,-${SOVER}} \
+        /usr/$(exhost --target)/include/openssl{,-${SOVER}}
+
+    if ! ever at_least 2; then
+        # conflicts with shadow, avoid by overwriting the symlink with the actual
+        # manpage
+        edo mv "${IMAGE}"/usr/share/man/man1/{,openssl-}passwd.1
+    fi
+
+    if option doc; then
+        # alternatives to support multiple slots, architecture independent files
+        local alternatives=()
+
+        for file in "${IMAGE}"/usr/share/man/*/*; do
+            alternatives+=(
+                ${file#${IMAGE}}
+                ${file#${IMAGE}}-${SOVER}
+            )
+        done
+
+        alternatives_for \
+            _${PN} ${SOVER} ${SOVER} \
+            "${alternatives[@]}"
+        emagicdocs
+    else
+        edo rm -rf ${IMAGE}/usr/share
+    fi
+
+    keepdir /etc/ssl/{certs,private}
+
+    expart binaries /usr/$(exhost --target)/bin
+    expart configuration /etc
+    expart --exclude configuration /etc/env.d
+    if option doc; then
+        expart documentation /usr/share/{doc,man}
+    fi
+    expart libraries /usr/$(exhost --target)/lib
+    expart development /usr/$(exhost --target)/{include,lib/pkgconfig}
+
+    # clean empty folder
+    edo find "${IMAGE}" -type d -empty -delete
+}
+

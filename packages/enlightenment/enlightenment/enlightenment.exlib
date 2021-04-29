@@ -1,0 +1,60 @@
+require enlightenment-base
+
+export_exlib_phases pkg_setup
+
+MYOPTIONS="
+	bluetooth
+	connman
+	udisks
+	mpd
+	polkit
+	wayland
+	X
+"
+
+DEPENDENCIES+="
+    build:
+    build+run:
+	enlightenment/efl[?connman][>=1.25.1]
+	enlightenment/efl[?X][>=1.25.1]
+    run:
+    suggestion:
+	enlightenment/terminology [[ description = [ Englightenment Desktop terminal emulator ] ]]
+"
+enlightenment_pkg_setup() {
+    if option !X ; then
+	append-cppflags -DEGL_NO_X11=1
+    fi
+}
+
+DEFAULT_SRC_PREPARE_PATCHES+=(
+)
+
+MESON_SRC_CONFIGURE_PARAMS+=(
+	-Dbattery=false
+	-Dmount-eeze=true
+	-Dwl-wl=false
+	-Dgeolocation=false
+	-Dwizard=false
+	-Dwl-weekeyboard=false
+	-Dvkbd=false
+	-Dwl-text-input=false
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES+=(
+	'bluetooth bluez5'
+	connman
+	'udisks mount-udisks'
+	'mpd music-control'
+	polkit
+	'wayland wl'
+	'X wl-x11'
+	'X xkbswitch'
+	'X xwayland'
+)
+
+MESON_SRC_CONFIGURE_OPTION_FEATURES+=(
+)
+
+MESON_SRC_CONFIGURE_OPTIONS+=(
+)

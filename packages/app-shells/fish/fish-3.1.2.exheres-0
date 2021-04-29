@@ -1,0 +1,37 @@
+# Copyright 2014 Saleem Abdulrasool <compnerd@compnerd.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ user=fish-shell project=fish-shell release=${PV} suffix=tar.gz ]
+require cmake
+
+SUMMARY="A smart and user-friendly command line shell for OS X, Linux, and the rest of the family"
+HOMEPAGE="http://fishshell.com/"
+
+LICENCES="GPL-2"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="docs"
+
+DEPENDENCIES="
+    build:
+        docs? ( app-doc/doxygen[>=1.8.7] )
+        sys-devel/gettext
+    build+run:
+        dev-libs/pcre2[>=10.21]
+        sys-libs/ncurses
+    suggestion:
+        dev-lang/python:* [[ note = [ fish_update_completion invokes create_manpage_completions.py ] ]]
+"
+
+CMAKE_SRC_CONFIGURE_PARAMS=(
+    -DCMAKE_INSTALL_SYSCONFDIR=/etc
+    -DCMAKE_INSTALL_DATAROOTDIR=/usr/share
+    -DSHARE_INSTALL_DIR=/usr/share
+)
+
+src_install(){
+    default
+    keepdir /etc/fish/{completions,conf.d,functions}
+    keepdir /usr/share/fish/vendor_{conf,completions,functions}.d
+}
+

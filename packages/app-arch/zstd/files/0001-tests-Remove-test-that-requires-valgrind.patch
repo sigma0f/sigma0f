@@ -1,0 +1,37 @@
+Source: Exherbo, Marvin Schmidt <marv@exherbo.org>
+Upstream: No
+Reason: Remove test that requires valgrind
+
+From 3c1a94ae29a02740d1bd82e21822c5fd4aed00e7 Mon Sep 17 00:00:00 2001
+From: Marvin Schmidt <marv@exherbo.org>
+Date: Fri, 16 Aug 2019 15:14:28 +0200
+Subject: [PATCH] tests: Remove test that requires valgrind
+
+---
+ tests/meson.build | 10 ----------
+ 1 file changed, 10 deletions(-)
+
+diff --git a/tests/meson.build b/tests/meson.build
+index 64eba602..0d7d405f 100644
+--- a/tests/meson.build
++++ b/tests/meson.build
+@@ -162,16 +162,6 @@ checkTag = executable('checkTag',
+ # Tests (Use "meson test --list" to list all tests)
+ # =============================================================================
+ 
+-if tests_supported_oses.contains(host_machine_os)
+-  valgrind_prog = find_program('valgrind', ['/usr/bin/valgrind'], required: true)
+-  valgrindTest_py = files('valgrindTest.py')
+-  test('valgrindTest',
+-    valgrindTest_py,
+-    args: [valgrind_prog.path(), zstd, datagen, fuzzer, fullbench],
+-    depends: [zstd, datagen, fuzzer, fullbench],
+-    timeout: 600) # Timeout should work on HDD drive
+-endif
+-
+ if host_machine_os != os_windows
+   playTests_sh = find_program(join_paths(zstd_rootdir, 'tests/playTests.sh'), required: true)
+   test('test-zstd',
+-- 
+2.22.0
+

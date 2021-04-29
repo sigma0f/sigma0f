@@ -1,0 +1,11 @@
+# Copyright 2013-2020 Marc-Antoine Perennou <Marc-Antoine@Perennou.com>
+# Distributed under the terms of the GNU General Public License v2
+
+# Get these from src/stage0.txt
+require rust-build [ date=2020-12-31 rustc_required=1.49.0 llvm_slot=11 importance=1000 ]
+
+PLATFORMS="~amd64"
+SLOT="stable"
+
+DOWNLOADS="https://static.rust-lang.org/dist/${MY_PNV}.tar.xz"
+

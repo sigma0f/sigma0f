@@ -1,0 +1,29 @@
+From c48bb9d90a05a3d82c1fe57ea0bc0cd7fa7eb684 Mon Sep 17 00:00:00 2001
+From: Marvin Schmidt <marv@exherbo.org>
+Date: Thu, 24 Sep 2020 09:57:50 +0200
+Subject: [PATCH] Disable DynamicLibrary tests
+
+On x86_64-pc-linux-musl:
+ - for musl's dlclose() is noop
+
+On x86_64-pc-linux-gnu:
+ - started failing with GCC 10 after working without problem up until GCC
+  9
+ - fails with a freshly bootstrapped complete LLVM toolchain
+---
+ llvm/unittests/Support/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/llvm/unittests/Support/CMakeLists.txt b/llvm/unittests/Support/CMakeLists.txt
+index 19fabfe2c74..399fac4a34a 100644
+--- a/llvm/unittests/Support/CMakeLists.txt
++++ b/llvm/unittests/Support/CMakeLists.txt
+@@ -118,4 +118,4 @@ endif()
+ # ManagedStatic.cpp uses <pthread>.
+ target_link_libraries(SupportTests PRIVATE LLVMTestingSupport ${LLVM_PTHREAD_LIB})
+ 
+-add_subdirectory(DynamicLibrary)
++# add_subdirectory(DynamicLibrary)
+-- 
+2.28.0
+

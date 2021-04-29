@@ -1,0 +1,41 @@
+# Copyright 2019 Danilo Spinella <danyspin97@protonmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ user='swaywm' ] meson
+
+SUMMARY="Wallpaper tool for Wayland compositors"
+
+LICENCES="MIT"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="
+    man
+    gdk-pixbuf [[
+        description =  [ Enable support for more image formats in swaybg ] ]]
+"
+
+DEPENDENCIES="
+    build:
+        man? ( app-doc/scdoc )
+        virtual/pkg-config
+    build+run:
+        sys-libs/wayland
+        sys-libs/wayland-protocols[>=1.14]
+        x11-libs/cairo
+        gdk-pixbuf? (
+            x11-libs/gdk-pixbuf:2.0
+        )
+        !compositors/sway[<1.1.0] [[
+            description = [ swaybg was included in sway ]
+            resolution = upgrade-blocked-before
+        ]]
+"
+
+MESON_SRC_CONFIGURE_PARAMS=(
+)
+
+MESON_SRC_CONFIGURE_OPTION_FEATURES=(
+    gdk-pixbuf
+    'man man-pages enabled disabled'    
+)
+

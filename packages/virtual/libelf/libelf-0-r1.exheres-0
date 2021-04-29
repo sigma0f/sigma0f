@@ -1,0 +1,19 @@
+SUMMARY="Virtual: libelf prodivers"
+HOMEPAGE=""
+
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="
+    ( providers:
+        libelf
+	elftoolchain
+    ) [[
+        *description = [ libelf provider ]
+        number-selected = exactly-one
+    ]]
+"
+
+DEPENDENCIES="
+    providers:libelf? ( dev-libs/libelf )
+    providers:elftoolchain? ( dev-util/elftoolchain[libelf] )
+"

@@ -1,0 +1,325 @@
+# Copyright 2019 Marc-Antoine Perennou <keruspe@exherbo.org>
+# Copyright 2018 Bjorn Pagen <bjornpagen@gmail.com>
+# Copyright 2018 Rasmus Thomsen <cogitri@exherbo.org>
+# Copyright 2015 Johannes Nixdorf <mixi@exherbo.org>
+# Copyright 2012 Elias Pipping <pipping@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+require llvm-base [ slotted=true asserts=true ]
+require alternatives
+
+export_exlib_phases src_unpack src_prepare src_configure src_compile src_test src_test_expensive src_install
+
+SUMMARY="The LLVM Compiler Infrastructure"
+
+MYOPTIONS+="
+    libedit
+    polly [[ description = [ High-Level Loop and Data-Locality Optimizations ] ]]
+    xml
+    clang [[ description = [ C/C++/Oject-C/Oject-C++ compilers ] ]]
+    lld   [[ description = [ llvm linkser ] ]]
+    lldb  [[ description = [ llvm debuger ] ]]
+    openmp
+    pstl
+    parallel-libs [[ description = [ acxxel ] ]]
+    clang-tools-extra
+    libc   [[ description = [ llvm c lib ] ]]
+    libclc [[ description = [ OpenCL lib ] ]]
+    bpf    [[ description = [ BPF targets support ] ]]
+    amdgpu [[ description = [ AMDGPU targets support ] ]]
+"
+
+# FIXME: need a way to specify "when cross-compiling need llvm for build host" dependency
+DEPENDENCIES+="
+    build:
+        dev-lang/perl:*
+        sys-devel/flex
+    build+run:
+        xml? ( dev-libs/libxml2:2.0 )
+        sys-libs/zlib
+        libedit? ( dev-libs/libedit )
+        !sys-devel/binutils[=2.30] [[
+            description = [ gold regressed in 2.30 ]
+            resolution = upgrade-blocked-before
+        ]]
+    test:
+        dev-python/setuptools:*[python_abis:*(-)?]
+        dev-python/psutil[python_abis:*(-)?]
+    run:
+        !dev-lang/llvm:0[<5.0.1-r1] [[
+            description = [ Old, unslotted llvm not supported ]
+            resolution = upgrade-blocked-before
+        ]]
+"
+# FIXME: fails to find some missing headers?
+#        polly? ( dev-libs/isl:=[>=0.20] )
+
+CMAKE_SRC_CONFIGURE_PARAMS+=(
+    # TODO(compnerd) hidden inline visibility causes test tools to fail to build as a required
+    # method is hidden; move the definition out of line, and export the interface
+    -DSUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG:BOOL=ON
+
+    -DLLVM_BINUTILS_INCDIR:STRING=/usr/$(exhost --is-native -q || echo "$(exhost --build)/$(exhost --build)/")$(exhost --target)/include/
+    -DLLVM_DEFAULT_TARGET_TRIPLE:STRING=$(exhost --target)
+    -DLLVM_INCLUDE_TESTS:BOOL=OFF
+    -DLLVM_INCLUDE_EXAMPLES:BOOL=OFF
+    -DLLVM_INCLUDE_BENCHMARKS:BOOL=OFF
+    -DLLVM_INSTALL_BINUTILS_SYMLINKS:BOOL=OFF
+    #-DLLVM_INSTALL_TOOLCHAIN_ONLY:BOOL=ON
+
+    # We always want to build LLVM's dylib, which is a shared library
+    # that basically contains all of the split libraries. It's required
+    # for most stuff that wants to link against LLVM. We can still build
+    # LLVM statically by setting BUILD_SHARED_LIBS to FALSE below.
+    -DLLVM_BUILD_LLVM_DYLIB:BOOL=OFF
+
+    # install LLVM to a slotted directory to prevent collisions with other llvm's
+    -DCMAKE_INSTALL_PREFIX:STRING=${LLVM_PREFIX}
+    -DCMAKE_INSTALL_MANDIR:STRING=${LLVM_PREFIX}/share/man
+
+    # install utils (FileCheck, count, not) to `llvm-config --bindir`, so that
+    # clang and others can use them
+    -DLLVM_INCLUDE_UTILS:BOOL=FALSE
+    -DLLVM_BUILD_UTILS:BOOL=FALSE
+    -DLLVM_INSTALL_UTILS:BOOL=FALSE
+    -DLLVM_ENABLE_BINDINGS:BOOL=FALSE
+
+    # needs perfmon2
+    -DLLVM_ENABLE_LIBPFM:BOOL=FALSE
+
+    -DLLVM_ENABLE_WERROR:BOOL=FALSE
+)
+
+CMAKE_SRC_CONFIGURE_OPTIONS+=(
+    'libedit LLVM_ENABLE_LIBEDIT'
+    'polly LLVM_TOOL_POLLY_BUILD'
+    'polly LLVM_POLLY_LINK_INTO_TOOLS'
+     'xml  LLVM_ENABLE_LIBXML2'
+)
+
+CMAKE_SRC_CONFIGURE_TESTS=(
+    # Build tests in src_compile instead of src_test
+    '-DLLVM_BUILD_TESTS:BOOL=ON -DLLVM_BUILD_TESTS:BOOL=OFF'
+    '--expensive -DLLVM_ENABLE_EXPENSIVE_CHECKS:BOOL=ON -DLLVM_ENABLE_EXPENSIVE_CHECKS:BOOL=OFF'
+)
+
+llvm_src_unpack() {
+    llvm-base_src_unpack
+
+    option polly && edo ln -s "${WORKBASE}"/llvm-project/polly "${CMAKE_SOURCE}"/tools/polly
+}
+
+llvm_src_prepare() {
+    cmake_src_prepare
+
+    # Fix the use of dot
+    edo sed -e 's/@DOT@//g' -i docs/doxygen.cfg.in
+
+    # These tests fail if gcc is not in path
+    edo sed -e "s/bugpoint/\0 --gcc=${CC}/" -i test/BugPoint/*.ll
+
+    # TODO(marvs): Need to investigate why these tests fail
+    #
+    # Exit Code: 1
+    # Command Output (stdout):
+    # --
+    # Read input file      : '/var/tmp/paludis/build/dev-lang-llvm-8.0.0rc2/work/llvm-8.0.0rc2.src/test/BugPoint/func-attrs.ll'
+    # *** All input ok
+    # Running selected passes on program to test for crash: Success!
+    # Initializing execution environment: Found lli: /var/tmp/paludis/build/dev-lang-llvm-8.0.0rc2/work/build/bin/lli
+    # Sorry, I can't automatically select a safe interpreter!
+    #
+    # Exiting.
+    edo rm test/BugPoint/func-attrs-keyval.ll
+    edo rm test/BugPoint/func-attrs.ll
+
+    # Hangs
+    edo rm -r test/tools/opt-viewer/
+
+    # Python 3.8 compat
+    [[ $(python_get_abi) == 2* ]] || edo sed -e 's/cgi/html/' -i tools/opt-viewer/opt-viewer.py
+}
+
+llvm_src_configure() {
+    local args=()
+
+    if ! exhost --is-native -q; then
+        args+=(
+            -DLLVM_TABLEGEN:STRING="/usr/$(exhost --build)/lib/llvm/${SLOT}/bin/llvm-tblgen"
+        )
+    fi
+
+    if option polly; then
+        args+=(
+            # FIXME: fails to build with our system isl
+            -DPOLLY_BUNDLED_ISL:BOOL=ON
+            -DPOLLY_ENABLE_GPGPU_CODEGEN:BOOL=OFF
+        )
+    fi
+
+    local llvm_targets="host"
+    if option bpf; then
+       llvm_targets+=";BPF"
+    fi
+    if option amdgpu; then
+       llvm_targets+=";AMDGPU"
+    fi
+    args+=( -DLLVM_TARGETS_TO_BUILD=${llvm_targets} )
+
+    local llvm_projects=""
+    if option clang; then
+       llvm_projects+="clang;compiler-rt;libunwind;libcxxabi;libcxx"
+       args+=(
+           #llvm
+	   #-DLLVM_ENABLE_RUNTIMES:STRING="all"
+	   -DLLVM_ENABLE_LIBCXX:BOOL=ON
+	   -DLLVM_STATIC_LINK_CXX_STDLIB:BOOL=ON
+	   #clang	  
+	   #-DCLANG_ENABLE_BOOTSTRAP:BOOL=ON
+	   -DENABLE_X86_RELAX_RELOCATIONS:BOOL=ON
+           -DCLANG_DEFAULT_CXX_STDLIB:STRING="libc++"
+	   -DCLANG_DEFAULT_RTLIB:STRING="compiler-rt"
+	   #libc++
+	   -DLIBCXX_USE_COMPILER_RT:BOOL=ON
+	   -DLIBCXX_CXX_ABI:STRING="libcxxabi"
+	   -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY:BOOL=ON
+	   #-DLIBCXX_ENABLE_SHARED:BOOL=OFF
+	   #libc++abi
+	   -DLIBCXXABI_USE_LLVM_UNWINDER:BOOL=ON
+	   -DLIBCXXABI_ENABLE_STATIC_UNWINDER:BOOL=ON
+   	   -DLIBCXXABI_USE_COMPILER_RT:BOOL=ON
+	   -DLIBCXXABI_ENABLE_ASSERTIONS:BOOL=OFF
+	   #-DLIBCXXABI_ENABLE_SHARED:BOOL=OFF
+	   #libunwind
+	   -DLIBUNWIND_USE_COMPILER_RT:BOOL=ON
+	   -DLIBUNWIND_ENABLE_ASSERTIONS:BOOL=OFF
+	   #-DLIBUNWIND_ENABLE_SHARED:BOOL=OFF
+	   #compiler_rt
+	   #build with libfuzzer failed
+           -DCOMPILER_RT_BUILD_LIBFUZZER:BOOL=OFF
+	   -DSANITIZER_CXX_ABI:STRING="libcxxabi"
+	   -DSANITIZER_USE_STATIC_CXX_ABI:BOOL=ON
+	   -DSANITIZER_USE_STATIC_LLVM_UNWINDER:BOOL=ON	   
+	   -DCOMPILER_RT_USE_BUILTINS_LIBRARY:BOOL=ON
+       )
+    fi
+    if option lld; then
+       llvm_projects+=";lld"
+    fi
+    if option lldb; then
+       llvm_projects+=";lldb"
+    fi
+    if option openmp; then
+       llvm_projects+=";openmp"
+    fi
+    if option libclc; then
+       llvm_projects+=";libclc"
+    fi
+    if option libc; then
+       llvm_projects+=";libc"
+       args+=( -DLLVM_LIBC_ENABLE_LINTING:BOOT=OFF )
+    fi
+    if option pstl; then
+       llvm_projects+=";pstl"
+    fi
+    if option parallel-libs; then
+       llvm_projects+=";parallel-libs"
+    fi
+    if option clang-tools-extra; then
+       llvm_projects+=";clang-tools-extra"
+    fi
+    if [[ "${llvm_projects}" != "" ]]; then
+       args+=( -DLLVM_ENABLE_PROJECTS=${llvm_projects} )
+    fi   
+
+    cmake_src_configure "${args[@]}"
+}
+
+llvm_src_compile() {
+    ninja_src_compile
+}
+
+llvm_src_test() {
+    # TODO(Cogitri): As far as I can see LLVM doesn't offer a seperate
+    # command to run non-expensive or expensive tests, so I resorted
+    # to the following:
+    expecting_tests --expensive || llvm-project_src_test
+}
+
+llvm_src_test_expensive() {
+    llvm-project_src_test
+}
+
+llvm_src_install() {
+    cmake_src_install
+
+    # Symlink dynlibs to /usr/lib
+    edo pushd "${IMAGE}${LLVM_PREFIX}/lib"
+    for lib in $(ls libLLVM-*.so); do
+        dosym "${LLVM_PREFIX}/lib/${lib}" "/usr/$(exhost --target)/lib/${lib}"
+    done
+    edo popd
+
+    nonfatal edo rmdir "${IMAGE}${LLVM_PREFIX}"/include/llvm/TextAPI/MachO
+    nonfatal edo rmdir "${IMAGE}${LLVM_PREFIX}"/include/llvm/BinaryFormat/WasmRelocs
+
+    # Manage alternatives for llvm binaries and manpages
+    local alternatives=()
+    # libc++
+    # libc++abi
+    # libunwind   
+    edo pushd "${IMAGE}${LLVM_PREFIX}/bin"
+    for bin in $(ls); do
+        alternatives+=("/usr/$(exhost --target)/bin/${bin}" "${LLVM_PREFIX}/bin/${bin}")
+    done
+    edo popd
+
+    # allows using the non-llvm-prefixed ar, nm, ranlib on lto objects
+    alternatives+=( /usr/$(exhost --build)/$(exhost --target)/lib/bfd-plugins/LLVMgold.so
+                    "${LLVM_PREFIX/$(exhost --target)/$(exhost --build)}"/lib/LLVMgold.so )
+
+    ALTERNATIVES_llvm_DESCRIPTION="Alternatives for LLVM"
+    alternatives_for "llvm" "${SLOT}" "${SLOT}" "${alternatives[@]}"
+
+    local priority=500
+    local host=$(exhost --target)
+    # lld
+    if option lld; then
+        local priority=100
+        alternatives=( ld lld ${priority} )
+        # ban ld.lld, alternative for banned ld
+    	dobanned ld.lld
+    	alternatives+=( "${BANNEDDIR}"/ld.lld ld.lld-${SLOT} )
+        alternatives+=( /usr/${host}/bin/ld  ${LLVM_PREFIX}/bin/lld )
+        alternatives+=( /usr/${host}/bin/${host}-ld  ${LLVM_PREFIX}/bin/lld )
+        alternatives_for "${alternatives[@]}"
+    fi
+
+    if option clang; then
+        local priority=500
+	local ban
+	# Ban unwanted binaries
+	for bin in {cc,cpp,c++}; do
+	    case "${bin}" in
+	    cc) ban=clang ;;
+	    cpp) ban=clang-cpp ;;
+	    c++) ban=clang++ ;;
+	    esac
+            alternatives=( ${bin} clang ${priority} )	    
+            dobanned "${ban}-${SLOT}"
+            alternatives+=( "${BANNEDDIR}/${ban}" "${ban}-${SLOT}" )
+   	    alternatives+=( /usr/${host}/bin/${bin}  ${LLVM_PREFIX}/bin/clang-${SLOT} )
+	    alternatives+=( /usr/${host}/bin/${host}-${ban}  ${LLVM_PREFIX}/bin/clang-${SLOT} )
+            alternatives_for "${alternatives[@]}"
+	done
+	# compiler-tools
+        alternatives=( compiler-tools llvm ${priority} )	    
+        alternatives+=( /usr/${host}/bin/c++filt  ${LLVM_PREFIX}/bin/llvm-cxxfilt )
+        alternatives+=( /usr/${host}/bin/${host}-c++filt  ${LLVM_PREFIX}/bin/llvm-cxxfilt )
+	for bin in {addr2line,ar,dwp,nm,objcopy,objdump,ranlib,readelf,size,strings,strip}; do
+            alternatives+=( /usr/${host}/bin/${bin}  ${LLVM_PREFIX}/bin/llvm-${bin} )
+	    alternatives+=( /usr/${host}/bin/${host}-${bin}  ${LLVM_PREFIX}/bin/llvm-${bin} )
+	done
+        alternatives_for "${alternatives[@]}"
+    fi
+}

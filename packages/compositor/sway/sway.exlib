@@ -1,0 +1,80 @@
+# Copyright 2016 Quentin “Sardem FF7” Glidic <sardemff7@exherbo.org>
+# Copyright 2019 Danilo Spinella <danyspin97@protonmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require bash-completion github [ user=swaywm ] \
+        meson [ meson_minimum_version=0.53.0 ]
+
+SUMMARY="i3-compatible window manager for Wayland"
+
+LICENCES="MIT"
+SLOT="0"
+MYOPTIONS="
+    man	
+    fish-completion [[
+        description = [ Install completion files for the fish shell ] ]]
+    gdk-pixbuf [[
+        description = [ Support more formats for background images ] ]]
+    tray [[
+        description = [ Enable support for swaybar tray ] ]]
+    xwayland [[
+        description = [ Enable XWayland support ( X11 compatibility layer ) ] ]]
+    zsh-completion
+    ( providers: systemd elogind ) [[
+        *description = [ Session tracking provider ]
+        number-selected = at-most-one
+    ]]
+    ( providers: eudev systemd ) [[
+        number-selected = exactly-one
+    ]]
+    tray? (
+        ( providers: systemd elogind ) [[
+            *note = [ tray requires elogind or systemd support enabled ]
+            number-selected = exactly-one
+        ]]
+    )
+"
+
+DEPENDENCIES="
+    build:
+        man? ( app-doc/scdoc[>=1.9.2] )
+        virtual/pkg-config
+    build+run:
+        dev-libs/json-c:=[>=0.13]
+        dev-libs/pcre
+        sys-libs/libinput[>=1.6.0]
+        sys-libs/wayland
+        sys-libs/wayland-protocols[>=1.14]
+        sys-libs/wlroots[xwayland?][>=0.12.0]
+        x11-libs/cairo
+        x11-libs/libevdev
+        x11-libs/libxkbcommon
+        x11-libs/pango
+        x11-libs/pixman
+        gdk-pixbuf? (
+            x11-libs/gdk-pixbuf:2.0
+        )
+        xwayland? ( x11-libs/libxcb )
+        providers:systemd? ( sys-apps/systemd[>=239] )
+        providers:elogind? ( sys-auth/elogind[>=239] )
+        providers:eudev? ( sys-apps/eudev )
+    run:
+        wayland-apps/swaybg[gdk-pixbuf?]
+    recommendation:
+        x11-apps/xkeyboard-config [[ description = [ Support for keyboard layouts and options ] ]]
+"
+
+MESON_SRC_CONFIGURE_PARAMS=(
+    -Ddefault-wallpaper=false
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
+    'man man-pages enabled disabled'
+    'bash-completion bash-completions'
+    'fish-completion fish-completions'
+    'gdk-pixbuf gdk-pixbuf enabled disabled'
+    'tray tray enabled disabled'
+    'zsh-completion zsh-completions'
+    'xwayland xwayland enabled disabled'
+)
+

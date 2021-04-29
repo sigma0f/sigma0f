@@ -1,0 +1,163 @@
+Source: written by Scott Moreau <oreaus@gmail.com>
+Reason: Fix plugin path for Exherbo directory structure
+Upstream: no
+
+diff --git a/config.h.in b/config.h.in
+index 035dcdb..a50d7bf 100644
+--- a/config.h.in
++++ b/config.h.in
+@@ -2,6 +2,7 @@
+ #define CONFIG_H
+ 
+ #define INSTALL_PREFIX "@INSTALL_PREFIX@"
++#define PLUGIN_PATH "@PLUGIN_PATH@"
+ #define WF_SRC_DIR "@WF_SRC_DIR@"
+ #mesondefine BUILD_WITH_IMAGEIO
+ #mesondefine WAYFIRE_DEBUG_ENABLED
+diff --git a/meson.build b/meson.build
+index 629a71b..6a73ad5 100644
+--- a/meson.build
++++ b/meson.build
+@@ -45,6 +45,7 @@ conf_data = configuration_data()
+ 
+ conf_data.set('WF_SRC_DIR', meson.source_root())
+ conf_data.set('INSTALL_PREFIX', get_option('prefix'))
++conf_data.set('PLUGIN_PATH', join_paths(get_option('prefix'), get_option('libdir'), 'wayfire'))
+ 
+ # needed to dlopen() plugins
+ # -E is for RTTI/dynamic_cast across plugins
+diff --git a/plugins/animate/meson.build b/plugins/animate/meson.build
+index 8a21f52..ee8447b 100644
+--- a/plugins/animate/meson.build
++++ b/plugins/animate/meson.build
+@@ -5,4 +5,4 @@ animiate = shared_module('animate',
+                          include_directories: [wayfire_api_inc, wayfire_conf_inc],
+                          dependencies: [wlroots, pixman, wfconfig],
+                          install: true,
+-                         install_dir: 'lib/wayfire/')
++                         install_dir: join_paths(get_option('libdir'), 'wayfire'))
+diff --git a/plugins/blur/meson.build b/plugins/blur/meson.build
+index 8bd3bea..2f49d9a 100644
+--- a/plugins/blur/meson.build
++++ b/plugins/blur/meson.build
+@@ -4,4 +4,4 @@ blur = shared_module('blur',
+                        include_directories: [wayfire_api_inc, wayfire_conf_inc],
+                        dependencies: [wlroots, pixman, wfconfig],
+                        install: true,
+-                       install_dir: 'lib/wayfire/')
++                       install_dir: join_paths(get_option('libdir'), 'wayfire'))
+diff --git a/plugins/cube/meson.build b/plugins/cube/meson.build
+index 8070b76..21b31c1 100644
+--- a/plugins/cube/meson.build
++++ b/plugins/cube/meson.build
+@@ -3,7 +3,7 @@ animiate = shared_module('cube',
+                          include_directories: [wayfire_api_inc, wayfire_conf_inc],
+                          dependencies: [wlroots, pixman, wfconfig],
+                          install: true,
+-                         install_dir: 'lib/wayfire/')
++                         install_dir: join_paths(get_option('libdir'), 'wayfire'))
+ 
+ #TODO: install only one of them?
+ install_subdir('shaders_2.0', install_dir: 'share/wayfire/cube')
+diff --git a/plugins/decor/meson.build b/plugins/decor/meson.build
+index 07e817f..5b4b4c8 100644
+--- a/plugins/decor/meson.build
++++ b/plugins/decor/meson.build
+@@ -3,4 +3,4 @@ decoration = shared_module('decoration',
+                           include_directories: [wayfire_api_inc, wayfire_conf_inc],
+                           dependencies: [wlroots, pixman, wf_protos, wfconfig, cairo],
+                           install: true,
+-                          install_dir: 'lib/wayfire/')
++                          install_dir: join_paths(get_option('libdir'), 'wayfire'))
+diff --git a/plugins/matcher/meson.build b/plugins/matcher/meson.build
+index dc7f1e5..57f357b 100644
+--- a/plugins/matcher/meson.build
++++ b/plugins/matcher/meson.build
+@@ -3,4 +3,4 @@ wobbly = shared_module('matcher',
+                        include_directories: [wayfire_api_inc, wayfire_conf_inc],
+                        dependencies: [wlroots, pixman, wfconfig],
+                        install: true,
+-                       install_dir: 'lib/wayfire/')
++                       install_dir: join_paths(get_option('libdir'), 'wayfire'))
+diff --git a/plugins/single_plugins/meson.build b/plugins/single_plugins/meson.build
+index c7c0b01..2cded6e 100644
+--- a/plugins/single_plugins/meson.build
++++ b/plugins/single_plugins/meson.build
+@@ -1,21 +1,21 @@
+-move          = shared_module('move',          'move.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-resize        = shared_module('resize',        'resize.cpp',        include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-command       = shared_module('command',       'command.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-autostart     = shared_module('autostart',     'autostart.cpp',     include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-vswitch       = shared_module('vswitch',       'vswitch.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-vswipe        = shared_module('vswipe',        'vswipe.cpp',        include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-grid          = shared_module('grid',          'grid.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-wrot          = shared_module('wrot',          'wrot.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-expo          = shared_module('expo',          'expo.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-switcher      = shared_module('switcher',      'switcher.cpp',      include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-fast_switcher = shared_module('fast-switcher', 'fast-switcher.cpp', include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-oswitch       = shared_module('oswitch',       'oswitch.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-window_rules  = shared_module('window-rules',  'window-rules.cpp',  include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-place         = shared_module('place',         'place.cpp',         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-invert        = shared_module('invert',        'invert.cpp',        include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-fisheye       = shared_module('fisheye',       'fisheye.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-zoom          = shared_module('zoom',          'zoom.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-alpha         = shared_module('alpha',         'alpha.cpp',         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
++move          = shared_module('move',          'move.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++resize        = shared_module('resize',        'resize.cpp',        include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++command       = shared_module('command',       'command.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++autostart     = shared_module('autostart',     'autostart.cpp',     include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++vswitch       = shared_module('vswitch',       'vswitch.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++vswipe        = shared_module('vswipe',        'vswipe.cpp',        include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++grid          = shared_module('grid',          'grid.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++wrot          = shared_module('wrot',          'wrot.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++expo          = shared_module('expo',          'expo.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++switcher      = shared_module('switcher',      'switcher.cpp',      include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++fast_switcher = shared_module('fast-switcher', 'fast-switcher.cpp', include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++oswitch       = shared_module('oswitch',       'oswitch.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++window_rules  = shared_module('window-rules',  'window-rules.cpp',  include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++place         = shared_module('place',         'place.cpp',         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++invert        = shared_module('invert',        'invert.cpp',        include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++fisheye       = shared_module('fisheye',       'fisheye.cpp',       include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++zoom          = shared_module('zoom',          'zoom.cpp',          include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++alpha         = shared_module('alpha',         'alpha.cpp',         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
+ 
+-idle          = shared_module('idle',           'idle.cpp',                         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
+-#cvtest        = shared_module('cvtest',         'compositor-view-test.cpp',         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: 'lib/wayfire/')
++idle          = shared_module('idle',           'idle.cpp',                         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
++#cvtest        = shared_module('cvtest',         'compositor-view-test.cpp',         include_directories: [wayfire_api_inc, wayfire_conf_inc], dependencies: [wlroots, pixman, wfconfig], install: true, install_dir: join_paths(get_option('libdir'), 'wayfire'))
+diff --git a/plugins/tile/meson.build b/plugins/tile/meson.build
+index d5207b7..aafe477 100644
+--- a/plugins/tile/meson.build
++++ b/plugins/tile/meson.build
+@@ -3,6 +3,6 @@ tile = shared_module('simple-tile',
+         include_directories: [wayfire_api_inc, wayfire_conf_inc],
+         dependencies: [wlroots, pixman, wfconfig],
+         install: true,
+-        install_dir: 'lib/wayfire/')
++        install_dir: join_paths(get_option('libdir'), 'wayfire'))
+ 
+ 
+diff --git a/plugins/wobbly/meson.build b/plugins/wobbly/meson.build
+index d3209c9..0212845 100644
+--- a/plugins/wobbly/meson.build
++++ b/plugins/wobbly/meson.build
+@@ -3,4 +3,4 @@ wobbly = shared_module('wobbly',
+                        include_directories: [wayfire_api_inc, wayfire_conf_inc],
+                        dependencies: [wlroots, pixman, wfconfig],
+                        install: true,
+-                       install_dir: 'lib/wayfire/')
++                       install_dir: join_paths(get_option('libdir'), 'wayfire'))
+diff --git a/src/output/plugin-loader.cpp b/src/output/plugin-loader.cpp
+index 2cd522f..50d5432 100644
+--- a/src/output/plugin-loader.cpp
++++ b/src/output/plugin-loader.cpp
+@@ -158,7 +158,7 @@ void plugin_manager::reload_dynamic_plugins()
+     std::stringstream stream(plugin_list);
+     std::vector<std::string> next_plugins;
+ 
+-    auto plugin_prefix = std::string(INSTALL_PREFIX "/lib/wayfire/");
++    auto plugin_prefix = std::string(PLUGIN_PATH "/");
+ 
+     std::string plugin_name;
+     while(stream >> plugin_name)
+

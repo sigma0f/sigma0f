@@ -1,0 +1,79 @@
+# Copyright 2008, 2009, 2010 Ingmar Vanhassel <ingmar@exherbo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+MY_PN="drm"
+
+require gitlab [ prefix=https://gitlab.freedesktop.org user=mesa tag=${PNV} new_download_scheme=true ]
+require meson
+
+export_exlib_phases src_prepare
+
+SUMMARY="Direct Rendering Manager library for X.org"
+HOMEPAGE+=" https://dri.freedesktop.org/wiki"
+
+LICENCES="MIT"
+SLOT="0"
+MYOPTIONS="
+    doc
+    shared
+    video_drivers: amdgpu intel nouveau radeon vc4 vmware 
+"
+
+# cairo and udev are only needed for tests
+# cunit is only needed for amdgpu tests
+DEPENDENCIES="
+    build:
+        virtual/pkg-config[>=0.9]
+    build+run:
+        video_drivers:intel? ( x11-libs/libpciaccess[>=0.10] )
+    test:
+        video_drivers:radeon? ( dev-util/cunit[>=2.1] )
+"
+
+MESON_SOURCE="${WORKBASE}"/${MY_PN}-${PNV}
+
+libdrm_src_prepare() {
+    meson_src_prepare
+
+    edo sed -e "/find_program/ s:'nm':'$(exhost --tool-prefix)nm':" \
+            -i meson.build
+
+    # Increase timeout of the random test a bit for slower boxes
+    edo sed -e "/timeout :/ s/240/300/" -i tests/meson.build
+
+    # Disable a test which apparently doesn't work in chroots, containers, etc
+    edo sed -e "/test('drmdevice', drmdevice)/d" -i tests/meson.build
+}
+
+MESON_SRC_CONFIGURE_PARAMS=(
+    -Dbuildtype=release
+    # cairo is only needed for modetest which isn't used with make check
+    -Dcairo-tests=false
+    -Dinstall-test-programs=false
+    -Dlibkms=true
+    -Dudev=true
+    -Dvalgrind=false
+    # Additional drivers:
+    -Detnaviv=false
+    -Dexynos=false
+    -Dfreedreno=false
+    -Dfreedreno-kgsl=false
+    -Domap=false
+    -Dtegra=false
+)
+
+MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
+    video_drivers:intel
+    video_drivers:nouveau
+    video_drivers:radeon
+    video_drivers:amdgpu
+    'video_drivers:amdgpu radeon'
+    video_drivers:vc4
+    'video_drivers:vmware vmwgfx'
+    'doc man-pages'
+)
+
+MESON_SRC_CONFIGURE_OPTIONS=(
+    'shared --default-library=shared --default-library=static'
+)
+

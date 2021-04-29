@@ -1,0 +1,7 @@
+require elftoolchain
+
+PLATFORMS="~amd64"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+	"${FILES}"/${PV}-fix-no-lsb_release.patch
+)

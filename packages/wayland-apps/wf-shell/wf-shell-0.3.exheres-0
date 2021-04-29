@@ -1,0 +1,31 @@
+# Copyright 2019 Danilo Spinella <danyspin97@protonmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require github [ user='WayfireWM' ] meson
+
+SUMMARY="A GTK3-based panel for wayfire"
+
+LICENCES="MIT"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="
+    pulse
+"
+
+DEPENDENCIES="
+    build+run:
+        dev-libs/wf-config[>=0.3]
+        gnome-bindings/gtkmm:3[wayland]
+        sys-libs/wayland
+        sys-libs/wayland-protocols
+        pulse? ( media-sound/pulseaudio )
+"
+
+DEFAULT_SRC_PREPARE_PATCHES=(
+    "${FILES}"/add-pulse-option.patch
+)
+
+MESON_SRC_CONFIGURE_OPTION_FEATURES=(
+    pulse
+)
+

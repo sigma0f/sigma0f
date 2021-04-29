@@ -1,0 +1,6 @@
+require enlightenment-base
+
+DEPENDENCIES+="
+    build+run:
+       enlightenment/efl[>=1.25.1]
+"

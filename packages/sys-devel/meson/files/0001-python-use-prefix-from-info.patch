@@ -1,0 +1,14 @@
+diff --git a/mesonbuild/modules/python.py b/mesonbuild/modules/python.py
+index bb61475..db7d693 100644
+--- a/mesonbuild/modules/python.py
++++ b/mesonbuild/modules/python.py
+@@ -288,8 +288,8 @@ class PythonInstallation(ExternalProgramHolder):
+         ExternalProgramHolder.__init__(self, python, interpreter.subproject)
+         self.interpreter = interpreter
+         self.subproject = self.interpreter.subproject
+-        prefix = self.interpreter.environment.coredata.get_builtin_option('prefix')
+         self.variables = info['variables']
++        prefix = self.variables['prefix']
+         self.paths = info['paths']
+         install_paths = info['install_paths']
+         self.platlib_install_path = os.path.join(prefix, install_paths['platlib'][1:])

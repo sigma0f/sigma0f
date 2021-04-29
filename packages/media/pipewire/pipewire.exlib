@@ -1,52 +1,107 @@
 # Copyright 2017 Rasmus Thomsen <Rasmus.thomsen@protonmail.com>
 # Distributed under the terms of the GNU General Public License v2
 
-require github [ user=PipeWire tag=${PV} ]
-require meson
+require github [ user=PipeWire tag=${PV} ] meson udev-rules
+export_exlib_phases src_install
 
 SUMMARY="PipeWire is a project that aims to greatly improve handling of audio and video under Linux"
 
-HOMEPAGE="http://pipewire.org/"
+HOMEPAGE="https://pipewire.org/"
 
-LICENCES="LGPL-2.1"
+LICENCES="MIT"
 SLOT="0"
 
 MYOPTIONS="
+    sndfile	
     doc
+    bluetooth [[ description = [ build Pipewire's bluez plugin ] ]]
+    ffmpeg [[ description = [ build Pipewire's ffmpeg plugin ] ]]
     gstreamer [[ description = [ build Pipewire's GStreamer plugins ] ]]
-    sdl
-    v4l
-    X
-    alsa
-    ffmpeg
+    jack [[ description = [ Build Pipewire's jack plugin ] ]]
+    systemd
+    ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
+    vulkan
+    ( parts: binaries development documentation configuration data )
 "
 
 DEPENDENCIES="
     build:
         virtual/pkg-config
-        doc? ( app-doc/doxygen )
+        doc? ( app-doc/doxygen
+	       app-text/xmltoman )
     build+run:
-        ffmpeg? ( media/ffmpeg [[ note = [ automagic ] ]] )
-        sdl? ( media-libs/SDL:2 [[ note = [ automagic ] ]] )
-	v4l? ( media-libs/v4l-utils )
+        dev-libs/glib:2[>=2.32.0]
+        sndfile? ( media-libs/libsndfile[>=1.0.20] )
         sys-apps/dbus
-        sys-apps/systemd
-        alsa? ( sys-sound/alsa-lib )
-        X? ( x11-libs/libX11 )
+        vulkan? ( sys-libs/vulkan-loader[>=1.1.69] )
+        sys-sound/alsa-lib[>=1.1.7]
+        bluetooth? (
+            media-libs/sbc
+            net-wireless/bluez
+        )
+        ffmpeg? ( media/ffmpeg )
         gstreamer? (
-            dev-libs/glib:2[>=2.32.0]
-            media-libs/gstreamer:1.0
+            media-libs/gstreamer:1.0[>=1.10.0]
             media-plugins/gst-plugins-base:1.0
         )
+        jack? ( media-sound/jack-audio-connection-kit[>=1.9.10] )
+        systemd? ( sys-apps/systemd )
+        providers:eudev? ( sys-apps/eudev )
+        providers:systemd? ( sys-apps/systemd )
 "
 
 MESON_SRC_CONFIGURE_PARAMS=(
-
+    # pipewire-media-session is installed only when -Dexamples=true
+    -Dexamples=false
+    -Dinstalled_tests=false
+    -Dpipewire-alsa=true
+    -Dspa-plugins=true
+    -Dalsa=true
+    -Daudiomixer=true
+    -Daudioconvert=true
+    -Dbluez5-backend-hsp-native=true
+    -Dbluez5-backend-hfp-native=true
+    -Dbluez5-backend-ofono=true
+    -Dbluez5-backend-hsphfpd=true
+    -Dcontrol=true
+    -Daudiotestsrc=true
+    -Dsupport=true
+    -Devl=false
+    -Dv4l2=false
+    -Dlibcamera=false
+    -Dvideoconvert=true
+    -Dvideotestsrc=true
+    -Dvolume=true
+    -Dpw-cat=true
+    -Dudev=true
+    -Dudevrulesdir=${UDEVRULESDIR}
 )
 
 MESON_SRC_CONFIGURE_OPTION_SWITCHES=(
-    'doc enable_docs'
-    'doc enable_man'
-    'gstreamer enable_gstreamer'
+    'bluetooth bluez5'
+    'doc docs'
+    'doc man'
+    ffmpeg
+    gstreamer
+    'gstreamer gstreamer-device-provider'
+    'jack jack'
+    'jack pipewire-jack'
+    systemd
+    vulkan    
 )
 
+MESON_SRC_CONFIGURE_TESTS=(
+    '-Dtests=true -Dtests=false'
+)
+
+pipewire_src_install() {
+    default
+
+    expart binaries /usr/$(exhost --target)/{bin,lib/spa-0.2,lib/pipewire-0.3,lib/alsa-lib}
+    expart binaries /usr/$(exhost --target)/lib/libpipewire-{0.3.so.0.322.0,0.3.so.0,0.3.so}
+    expart documentation /usr/share/doc
+    expart configuration /etc/pipewire
+    expart configuration /usr/$(exhost --target)/lib/{udev,systemd}
+    expart data /usr/share/{alsa,alsa-card-profile,locale}
+    expart development /usr/$(exhost --target)/{include,lib/pkgconfig}    
+}

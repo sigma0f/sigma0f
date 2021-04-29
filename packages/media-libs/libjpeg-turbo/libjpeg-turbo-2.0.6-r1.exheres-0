@@ -1,0 +1,52 @@
+# Copyright 2011 Dimitry Ishenko <dimitry.ishenko@gmail.com>
+# Distributed under the terms of the GNU General Public License v2
+
+require sourceforge [ suffix=tar.gz ] cmake
+
+SUMMARY="Library for JPEG image compression using MMX, SSE, and SSE2 SIMD instructions"
+DESCRIPTION="
+libjpeg-turbo is a version of libjpeg which uses MMX, SSE, and SSE2 SIMD instructions to accelerate
+baseline JPEG compression/decompression by about 2-4x on x86 and x86-64 platforms. It is based on
+libjpeg/SIMD but has numerous enhancements.
+"
+HOMEPAGE+=" https://${PN}.org"
+
+LICENCES="BSD-3"
+SLOT="0"
+PLATFORMS="~amd64"
+MYOPTIONS="simd parts: binaries development documentation libraries"
+
+DEPENDENCIES="
+    build:
+        simd? ( dev-lang/nasm )
+        !media-libs/jpeg [[
+            description = [ Both packages collide heavily ]
+            resolution = uninstall-blocked-after
+        ]]
+"
+
+CMAKE_SRC_CONFIGURE_PARAMS=(
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_DOCDIR="/usr/share/doc/${PNVR}"
+    -DENABLE_SHARED:BOOL=TRUE
+    -DENABLE_STATIC:BOOL=TRUE
+    -DWITH_12BIT:BOOL=TRUE
+    -DWITH_JPEG7:BOOL=FALSE
+    -DWITH_JPEG8:BOOL=FALSE
+    -DWITH_TURBOJPEG:BOOL=FALSE
+    -DWITH_JAVA:BOOL=FALSE
+)
+
+CMAKE_SRC_CONFIGURE_OPTIONS=(
+	'simd REQUIRE_SIMD'
+	'simd WITH_SIMD'
+)
+
+src_install() {
+    default
+    
+    expart binaries /usr/$(exhost --target)/bin
+    expart documentation /usr/share/{doc,man}
+    expart libraries /usr/$(exhost --target)/lib
+    expart development /usr/$(exhost --target)/{include,lib/pkgconfig}
+}

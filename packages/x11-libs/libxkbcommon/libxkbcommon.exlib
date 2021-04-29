@@ -1,36 +1,48 @@
 # Copyright 2012 Alex Elsayed <eternaleye@gmail.com>
 # Distributed under the terms of the GNU General Public License v2
 
-require github [ user=xkbcommon ] meson [ meson_minimum_version=0.41.0 ]
+require github [ user=xkbcommon release=xkbcommon-${PV} suffix=tar.xz ] meson
 
 SUMMARY="A common input handling library"
 HOMEPAGE+=" https://xkbcommon.org"
 
 LICENCES="MIT"
 SLOT="0"
-MYOPTIONS="X doc wayland"
+MYOPTIONS="
+    X
+    doc
+    wayland
+    xkbregistry [[ description = [ A library to list available XKB models, layouts and variants for a given ruleset ] ]]
+"
 
 DEPENDENCIES="
     build:
         sys-devel/bison
         sys-devel/flex
         virtual/pkg-config[>=0.9.0]
+        X? ( x11-proto/xorgproto )
         doc? ( app-doc/doxygen )
     build+run:
-	x11-libs/xkeyboard-config[>=2.23.1]
         X? ( x11-libs/libxcb[>=1.10] )
         wayland? (
             sys-libs/wayland[>=1.2.0]
-            sys-libs/wayland-protocols[>=1.7]
+            sys-libs/wayland-protocols[>=1.12]
+        )
+        x11-apps/xkeyboard-config
+        xkbregistry? (
+            dev-libs/libxml2:2.0
         )
 "
 
 MESON_SRC_CONFIGURE_PARAMS=(
-
+    -Dxkb-config-root=/usr/share/X11/xkb
+    -Ddefault-model=pc86
 )
+
 MESON_SRC_CONFIGURE_OPTION_ENABLES=(
     'X x11'
     'doc docs'
     wayland
+    xkbregistry
 )
 

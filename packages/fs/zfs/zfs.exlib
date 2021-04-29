@@ -1,14 +1,13 @@
 # Copyright 2012 NAKAMURA Yoshitaka
 # Copyright 2013 Nicolas Braud-Santoni <nicolas+exherbo@braud-santoni.eu>
 # Copyright 2018 Rasmus Thomsen <cogitri@exherbo.org>
-# Copyright 2018 sigma0f <sigma0f@pme.me>
 # Distributed under the terms of the GNU General Public License v2
 
-require autotools [ supported_autoconf=[ 2.5 ] supported_automake=[ 1.16 1.15 ] ]
-require systemd-service
+require autotools [ supported_autoconf=[ 2.5 ] supported_automake=[ 1.16 ] ]
+require systemd-service udev-rules
 
 if ever is_scm; then
-    SCM_zfsimages_REPOSITORY="https://github.com/zfsonlinux/zfs-images.git"
+    SCM_zfsimages_REPOSITORY="https://github.com/openzfs/zfs-images.git"
     SCM_SECONDARY_REPOSITORIES="zfsimages"
     SCM_EXTERNAL_REFS="scripts/zfs-images:zfsimages"
 fi
@@ -17,7 +16,6 @@ require github [ user=zfsonlinux release=${PNV} suffix=tar.gz ]
 
 export_exlib_phases src_prepare src_install pkg_postinst
 
-HOMEPAGE="http://zfsonlinux.org/"
 SUMMARY="Native ZFS for Linux"
 DESCRIPTION="
 The ZFS on Linux project provides a feature-complete implementation
@@ -29,58 +27,113 @@ storage capacities, efficient data compression, integration of the concepts of
 filesystem and volume management, snapshots and copy-on-write clones, continuous
 integrity checking and automatic repair, RAID-Z and native NFSv4 ACLs.
 "
+HOMEPAGE+=" https://openzfs.org"
+
+UPSTREAM_RELEASE_NOTES="https://github.com/zfsonlinux/zfs/releases/tag/zfs-${PV}"
 
 LICENCES="CDDL-1.0"
-MYOPTIONS="systemd sysvinit"
+SLOT="0"
+MYOPTIONS="
+    src
+    python
+    static
+    ( providers: eudev systemd ) [[ number-selected = exactly-one ]]
+    ( providers: libressl openssl ) [[ number-selected = exactly-one ]]
+    ( parts: binaries development documentation configuration data )
+"
 
 DEPENDENCIES="
+    build:
+	sys-devel/gettext[>=0.20]
+	virtual/pkg-config
     build+run:
-        fs/spl[~${PV}]
+	python? ( dev-lang/python:*[>=3] )
+	sys-apps/util-linux
+	sys-libs/zlib
+	net-libs/libtirpc
+	providers:eudev? ( sys-apps/eudev )
+	providers:libressl? ( dev-libs/libressl:= )
+	providers:openssl? ( dev-libs/openssl )
+	providers:systemd? ( sys-apps/systemd )
+	!sys-libs/spl [[
+	    description = [ zfs now includes spl ]
+	    resolution = uninstall-blocked-before
+	]]
     suggestion:
-        sys-boot/dracut [[ description = [ For generating initramfs which include ZFS' modules ] ]]
+	sys-boot/dracut [[ description = [ For generating initramfs which include ZFS' modules ] ]]
 "
 
 DEFAULT_SRC_CONFIGURE_PARAMS=(
     # Note that this only enables installation of systemd-units
+    --enable-systemd
+    --disable-sysvinit
+    --disable-nls
+    --disable-rpath
+    --disable-asan
+    --disable-pam
+    
+    --with-pic
     --with-config=user
     --with-dracutdir=/usr/$(exhost --target)/lib/dracut
-    --with-systemdmodulesloaddir=/usr/$(exhost --target)/lib/modules-load.d
-    --with-udevdir=/usr/$(exhost --target)/lib/udev
-    --with-systemdunitdir="${SYSTEMDSYSTEMUNITDIR}"
-    --with-systemdpresetdir="${SYSTEMDSYSTEMUNITDIR}-preset"
     --with-mounthelperdir=/usr/$(exhost --target)/bin
+    --with-systemdgeneratordir="${SYSTEMDSYSTEMUNITDIR}-generators"
+    --with-systemdmodulesloaddir=/usr/$(exhost --target)/lib/modules-load.d
+    --with-systemdpresetdir="${SYSTEMDSYSTEMUNITDIR}-preset"
+    --with-systemdunitdir="${SYSTEMDSYSTEMUNITDIR}"
+    --with-udevdir="${UDEVDIR}"
+    --with-udevruledir="${UDEVRULESDIR}"
 )
 
 DEFAULT_SRC_CONFIGURE_OPTION_ENABLES=(
-    systemd
-    sysvinit
+	'python pyzfs'
+	'!static shared'
+	static
 )
 
-# XXX: need root privileges. also, kernel modules should be build to run test
-RESTRICT="test"
+DEFAULT_SRC_CONFIGURE_OPTION_WITHS=(
+	python
+)
 
 AT_M4DIR=( config )
 
 zfs_src_prepare() {
     # Use prefixed cpp
-    edo sed -i -e "s/cpp/$(exhost --target)-cpp/" config/kernel.m4
+    edo sed -i -e "s/cpp/$(exhost --tool-prefix)cpp/" config/kernel.m4
 
-    eautoreconf
+    autotools_src_prepare
 }
 
 zfs_src_install() {
     default
 
-    edo rmdir "${IMAGE}"/usr/$(exhost --target)/include/libzfs/linux
-    edo rm -r "${IMAGE}"/usr/share/zfs
+    edo rm -rf "${IMAGE}"/usr/share/zfs/{zfs-tests,test-runner}
+    edo rm -rf "${IMAGE}"/usr/share/zfs/zfs-tests.sh
+    edo rm -rf "${IMAGE}"/usr/share/man/man1/{radz_test.1,test-runner.1}
+    edo rm -rf "${IMAGE}"/usr/$(exhost --target)/bin/{ztest,raidz_test}
+    edo rm -rf "${IMAGE}"/usr/$(exhost --target)/libexec/zfs/zpool.d/test_*
+    edo rm -rf "${IMAGE}"/usr/$(exhost --target)/libexec/zfs/zpool.d/smart_test
+    edo rm -rf "${IMAGE}"/etc/zfs/zpool.d/test_*
+    edo rm -rf "${IMAGE}"/etc/zfs/zpool.d/smart_test
+    edo rm -rf "${IMAGE}"/usr/$(exhost --target)/lib/modules-load.d
+    edo rm -rf "${IMAGE}"/usr/share/zfs/runfiles
 
-    emake clean
-    dodir /usr/src/${PNV}
-    edo mv * "${IMAGE}/usr/src/${PNV}"
+    expart binaries /usr/$(exhost --target)/{bin,libexec/zfs}
+    expart documentation /usr/share/{doc,info,man}
+    expart development /usr/$(exhost --target)/{include,lib/pkgconfig}
+    expart development /usr/$(exhost --target)/lib/{libuutil.la,libuutil.a,libzfs_core.la,libzfs_core.a,libzfs.la,libzfs.a,libzfsbootenv.la,libzfsbootenv.a,libnvpair.la,libnvpair.a,libzpool.la,libzpool.a,security/pam_zfs_key.la}
+    expart configuration /etc/{zfs,sudoers.d,default}
+    expart configuration /usr/$(exhost --target)/lib/{udev,dracut,systemd}    
+    expart data /usr/share/{zfs,initramfs-tools,pam-configs}
+
+    if option src ; then
+       dodir /usr/src/${PNV}
+       edo make clean
+       edo mv * "${IMAGE}"/usr/src/${PNV}
+       edo find "${IMAGE}" -type d -empty -delete
+    fi
+
+    # clean empty folder
     edo find "${IMAGE}" -type d -empty -delete
-    
-    # systemd service
-    install_systemd_files
 }
 
 zfs_pkg_postinst() {
@@ -88,7 +141,6 @@ zfs_pkg_postinst() {
     elog "The kernel module source has been installed into /usr/src/${PNV}"
     elog "You have to build it yourself now and for every consequent kernel update:"
     elog "# cd /usr/src/${PNV}"
-    elog "# ./configure --enable-linux-builtin --with-config=kernel --with-linux=<pathtoyourkernelsource>"
+    elog "# ./configure --with-config=kernel --with-linux=<pathtoyourkernelsource>"
     elog "# make && make install"
 }
-
